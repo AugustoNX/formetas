@@ -1,0 +1,7 @@
+formetas/build/app
+formetas/build/ios
+formetas/build/linux
+formetas/build/macos
+formetas/build/windows
+formetas/android/.gradle
+formetas/.dart_tool
