@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1050101010810",
+    "firebase_url": "https://formetas-85c14-default-rtdb.firebaseio.com",
+    "project_id": "formetas-85c14",
+    "storage_bucket": "formetas-85c14.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050101010810:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.formetas.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Fs0daT9asvYc-STIUCPddk6c83dHaAQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
