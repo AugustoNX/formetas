@@ -18,6 +18,7 @@ import '../../data/repositories/investment_repository_impl.dart';
 import '../../data/repositories/reserve_repository_impl.dart';
 import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
+import '../../domain/entities/settings_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/category_repository.dart';
 import '../../domain/repositories/goal_repository.dart';
@@ -115,4 +116,8 @@ final transferServiceProvider = Provider<TransferService>((ref) {
 
 final dashboardServiceProvider = Provider<DashboardService>((ref) {
   return DashboardService();
+});
+
+final themeModeProvider = StateProvider<AppThemeMode>((ref) {
+  return ref.watch(settingsLocalDataSourceProvider).getThemeMode();
 });

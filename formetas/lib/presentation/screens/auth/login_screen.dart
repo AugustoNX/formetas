@@ -35,14 +35,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text,
             _passwordController.text,
           );
-      if (mounted) context.go('/');
     } on AuthFailure catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: AppColors.expense),
         );
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível entrar. Tente novamente.'),
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
+    }
   }
 
   @override

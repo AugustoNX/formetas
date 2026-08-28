@@ -61,7 +61,7 @@ class ReserveRemoteDataSource {
 
   Future<void> createReserve(ReserveEntity reserve) async {
     final data = ReserveModel.fromEntity(reserve).toMap();
-    await _ref(reserve.userId).child(reserve.id).update(data);
+    await _ref(reserve.userId).child(reserve.id).set(data);
   }
 
   Future<void> updateReserve(ReserveEntity reserve) async {

@@ -94,7 +94,18 @@ class MainShell extends StatelessWidget {
   void _showAddMenu(BuildContext context, {required bool desktop}) {
     void open(String route) {
       Navigator.pop(context);
-      context.push(route);
+      const tabs = {
+        '/',
+        '/transactions',
+        '/investments',
+        '/goals',
+        '/reports',
+      };
+      if (tabs.contains(route)) {
+        context.go(route);
+      } else {
+        context.push(route);
+      }
     }
 
     final content = _AddMenuContent(onSelect: open);
@@ -318,7 +329,7 @@ class _AddMenuContent extends StatelessWidget {
           color: AppColors.secondary,
           label: 'Caixinha',
           subtitle: 'Reserva, CDB, poupança, CDI...',
-          onTap: () => onSelect('/reserves'),
+          onTap: () => onSelect('/reserve/new'),
         ),
         _AddOption(
           icon: Icons.trending_up_rounded,

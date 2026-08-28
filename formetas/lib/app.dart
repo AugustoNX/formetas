@@ -23,8 +23,7 @@ class FormetasApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final settingsLocal = ref.watch(settingsLocalDataSourceProvider);
-    final themeMode = settingsLocal.getThemeMode();
+    final themeMode = ref.watch(themeModeProvider);
 
     return SystemUiScope(
       child: MaterialApp.router(

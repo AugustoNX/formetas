@@ -138,6 +138,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     await ref.read(userRepositoryProvider).updateSettings(user.id, settings);
     await ref.read(settingsLocalDataSourceProvider).setThemeMode(_theme);
+    ref.read(themeModeProvider.notifier).state = _theme;
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

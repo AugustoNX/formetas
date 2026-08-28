@@ -112,7 +112,7 @@ class DashboardService {
       availableBalance: closingBalance,
       totalInvestments: totalInvestments,
       totalReserves: totalReserves,
-      netWorth: closingBalance + totalReserves,
+      netWorth: closingBalance + totalReserves + totalInvestments,
       investmentYield: totalYield,
       reserveYield: reserveYield,
       openingBalance: openingBalance,
@@ -148,12 +148,13 @@ class DashboardService {
       }
     }
 
-    final months = AppDateUtils.last12Months();
+    final now = DateTime.now();
+    final fromMonth = _earliestMonth(transactions, transfers, now);
     final summaries = MonthlyBalanceCalculator.compute(
       transactions: transactions,
       transfers: transfers,
-      fromMonth: months.first,
-      toMonth: months.last,
+      fromMonth: fromMonth,
+      toMonth: now,
     );
 
     final avgExpense = summaries.isEmpty

@@ -95,14 +95,15 @@ class MonthlyBarChart extends StatelessWidget {
     final maxY = trend
         .map((t) => [t.income, t.expense, t.balance.abs()])
         .expand((e) => e)
-        .reduce((a, b) => a > b ? a : b);
+        .fold(0.0, (a, b) => a > b ? a : b);
+    final chartMaxY = maxY <= 0 ? 1.0 : maxY * 1.2;
 
     return SizedBox(
       height: height,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: maxY * 1.2,
+          maxY: chartMaxY,
           barTouchData: BarTouchData(enabled: true),
           titlesData: FlTitlesData(
             bottomTitles: AxisTitles(
@@ -176,19 +177,33 @@ class BalanceLineChart extends StatelessWidget {
       return FlSpot(e.key.toDouble(), e.value.balance);
     }).toList();
 
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final values = spots.map((s) => s.y);
+    var minY = values.reduce((a, b) => a < b ? a : b);
+    var maxY = values.reduce((a, b) => a > b ? a : b);
+    var range = maxY - minY;
+
+    if (range.abs() < 0.01) {
+      final pad = minY.abs() < 0.01 ? 10.0 : minY.abs() * 0.1;
+      minY -= pad;
+      maxY += pad;
+      range = maxY - minY;
+    } else {
+      final pad = range * 0.1;
+      minY -= pad;
+      maxY += pad;
+      range = maxY - minY;
+    }
 
     return SizedBox(
       height: height,
       child: LineChart(
         LineChartData(
-          minY: minY * 1.1,
-          maxY: maxY * 1.1,
+          minY: minY,
+          maxY: maxY,
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            horizontalInterval: (maxY - minY) / 4,
+            horizontalInterval: range / 4,
             getDrawingHorizontalLine: (_) => FlLine(
               color: AppColors.gray.withValues(alpha: 0.15),
               strokeWidth: 1,

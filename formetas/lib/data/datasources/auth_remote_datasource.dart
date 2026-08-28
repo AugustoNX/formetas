@@ -19,10 +19,7 @@ class AuthRemoteDataSource {
   final FirebaseDatabase _database;
 
   Stream<UserEntity?> get authStateChanges {
-    return _auth.authStateChanges().map((user) {
-      if (user == null) return null;
-      return _mapUser(user);
-    });
+    return _auth.authStateChanges().asyncMap(_mapUserWhenReady);
   }
 
   UserEntity? get currentUser {
@@ -40,6 +37,7 @@ class AuthRemoteDataSource {
         email: email.trim(),
         password: password,
       );
+      await credential.user?.getIdToken();
       return _mapUser(credential.user!);
     } on FirebaseAuthException catch (e) {
       throw AuthErrorMapper.map(e);
@@ -56,10 +54,12 @@ class AuthRemoteDataSource {
         email: email.trim(),
         password: password,
       );
-      await credential.user!.updateDisplayName(name.trim());
+      final firebaseUser = credential.user!;
+      await firebaseUser.getIdToken(true);
+      await firebaseUser.updateDisplayName(name.trim());
 
       final user = UserModel(
-        id: credential.user!.uid,
+        id: firebaseUser.uid,
         name: name.trim(),
         email: email.trim(),
         createdAt: DateTime.now(),
@@ -70,10 +70,16 @@ class AuthRemoteDataSource {
           .ref('users/${user.id}/settings')
           .set(const SettingsModel().toMap());
 
-      await credential.user!.sendEmailVerification();
+      await firebaseUser.sendEmailVerification();
       return user;
     } on FirebaseAuthException catch (e) {
       throw AuthErrorMapper.map(e);
+    } on FirebaseException catch (e) {
+      throw AuthFailure(
+        e.code == 'permission-denied'
+            ? 'Não foi possível criar seus dados agora. Tente entrar de novo.'
+            : 'Não foi possível concluir o cadastro. Tente novamente.',
+      );
     }
   }
 
@@ -98,7 +104,16 @@ class AuthRemoteDataSource {
     final user = _auth.currentUser;
     if (user == null) throw const AuthFailure('Usuário não autenticado.');
     await user.reload();
+    await _auth.currentUser?.getIdToken(true);
     return _mapUser(_auth.currentUser!);
+  }
+
+  Future<UserEntity?> _mapUserWhenReady(User? user) async {
+    if (user == null) return null;
+    try {
+      await user.getIdToken();
+    } catch (_) {}
+    return _mapUser(_auth.currentUser ?? user);
   }
 
   UserEntity _mapUser(User user) {

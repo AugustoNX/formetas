@@ -4,12 +4,13 @@ import '../../domain/entities/category_entity.dart';
 import '../../domain/entities/dashboard_entity.dart';
 import '../../domain/entities/goal_entity.dart';
 import '../../domain/entities/investment_entity.dart';
-import '../../domain/entities/reserve_entity.dart';
 import '../../domain/entities/reserve_movement_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
+import '../../domain/entities/movement_entry.dart';
 import '../../domain/entities/settings_entity.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/services/category_merger.dart';
+import '../../domain/services/movement_list_builder.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import 'auth_provider.dart';
 import 'core_providers.dart';
@@ -66,15 +67,6 @@ final reservesWithMovementsProvider =
   return ref.watch(reserveRepositoryProvider).watchReservesWithMovements(user.id);
 });
 
-final reservesProvider = StreamProvider<List<ReserveEntity>>((ref) {
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return Stream.value([]);
-  return ref
-      .watch(reserveRepositoryProvider)
-      .watchReservesWithMovements(user.id)
-      .map((list) => list.map((item) => item.reserve).toList());
-});
-
 final goalsProvider = StreamProvider<List<GoalEntity>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Stream.value([]);
@@ -84,33 +76,51 @@ final goalsProvider = StreamProvider<List<GoalEntity>>((ref) {
 final transactionFilterProvider =
     StateProvider<TransactionFilter>((ref) => const TransactionFilter());
 
-final filteredTransactionsProvider =
-    Provider<AsyncValue<List<TransactionEntity>>>((ref) {
+final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
   final user = ref.watch(currentUserProvider);
-  final filter = ref.watch(transactionFilterProvider);
   final transactions = ref.watch(transactionsProvider);
+  final transfers = ref.watch(transfersProvider);
+  final reserves = ref.watch(reservesWithMovementsProvider);
+  final investments = ref.watch(investmentsProvider);
 
   if (user == null) return const AsyncValue.data([]);
 
-  return transactions.whenData((list) {
-    return list.where((t) {
-      if (filter.type != null && t.type != filter.type) return false;
-      if (filter.category != null && t.category != filter.category) return false;
-      if (filter.month != null && t.date.month != filter.month) return false;
-      if (filter.year != null && t.date.year != filter.year) return false;
-      if (filter.searchQuery != null && filter.searchQuery!.isNotEmpty) {
-        final q = filter.searchQuery!.toLowerCase();
-        if (!t.description.toLowerCase().contains(q) &&
-            !t.category.toLowerCase().contains(q)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  });
+  if (transactions.isLoading ||
+      transfers.isLoading ||
+      reserves.isLoading ||
+      investments.isLoading) {
+    return const AsyncValue.loading();
+  }
+
+  if (transactions.hasError) {
+    return AsyncValue.error(transactions.error!, transactions.stackTrace!);
+  }
+  if (transfers.hasError) {
+    return AsyncValue.error(transfers.error!, transfers.stackTrace!);
+  }
+  if (reserves.hasError) {
+    return AsyncValue.error(reserves.error!, reserves.stackTrace!);
+  }
+  if (investments.hasError) {
+    return AsyncValue.error(investments.error!, investments.stackTrace!);
+  }
+
+  return AsyncValue.data(
+    MovementListBuilder.build(
+      transactions: transactions.requireValue,
+      transfers: transfers.requireValue,
+      reserves: reserves.requireValue,
+      investments: investments.requireValue,
+    ),
+  );
 });
 
 final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
+  final auth = ref.watch(authStateProvider);
+  if (auth.isLoading || auth.valueOrNull == null) {
+    return const AsyncValue.loading();
+  }
+
   final transactions = ref.watch(transactionsProvider);
   final investments = ref.watch(investmentsProvider);
   final reserves = ref.watch(reservesWithMovementsProvider);
@@ -144,6 +154,11 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
 });
 
 final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
+  final auth = ref.watch(authStateProvider);
+  if (auth.isLoading || auth.valueOrNull == null) {
+    return const AsyncValue.loading();
+  }
+
   final transactions = ref.watch(transactionsProvider);
   final investments = ref.watch(investmentsProvider);
   final reserves = ref.watch(reservesWithMovementsProvider);

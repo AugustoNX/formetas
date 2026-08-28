@@ -217,16 +217,6 @@ class TransferService {
         WalletType.balance => 'saldo',
       };
 
-  ReserveWithMovements _findReserve(
-    List<ReserveWithMovements> reserves,
-    String id,
-  ) {
-    return reserves.firstWhere(
-      (r) => r.reserve.id == id,
-      orElse: () => throw TransferException('Caixinha não encontrada'),
-    );
-  }
-
   InvestmentEntity _findInvestment(
     List<InvestmentEntity> investments,
     String id,

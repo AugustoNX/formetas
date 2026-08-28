@@ -22,21 +22,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 2));
+    final started = DateTime.now();
+
+    while (mounted && ref.read(authStateProvider).isLoading) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (DateTime.now().difference(started) > const Duration(seconds: 8)) {
+        break;
+      }
+    }
+
+    final elapsed = DateTime.now().difference(started);
+    if (elapsed < const Duration(milliseconds: 1400)) {
+      await Future.delayed(const Duration(milliseconds: 1400) - elapsed);
+    }
+
     if (!mounted) return;
 
-    final auth = ref.read(authStateProvider);
-    auth.when(
-      data: (user) {
-        if (user != null) {
-          context.go('/');
-        } else {
-          context.go('/auth/login');
-        }
-      },
-      loading: () => context.go('/auth/login'),
-      error: (_, __) => context.go('/auth/login'),
-    );
+    final user = ref.read(authStateProvider).valueOrNull;
+    context.go(user != null ? '/' : '/auth/login');
   }
 
   @override

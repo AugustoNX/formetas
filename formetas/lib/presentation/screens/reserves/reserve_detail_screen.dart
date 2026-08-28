@@ -153,7 +153,13 @@ class ReserveDetailScreen extends ConsumerWidget {
                   subtitle: AppDateUtils.formatDate(movement.date),
                   amount: movement.amount,
                   isDeposit: movement.type == ReserveMovementType.deposit,
-                  onDelete: () => _deleteMovement(context, ref, movement),
+                  onDelete: () => _deleteMovement(
+                    context,
+                    ref,
+                    item: item,
+                    movement: movement,
+                    cdiRate: cdiRate,
+                  ),
                 ),
               ),
               if (item.reserve.initialValue <= 0 && item.movements.isEmpty)
@@ -176,9 +182,11 @@ class ReserveDetailScreen extends ConsumerWidget {
 
   Future<void> _deleteMovement(
     BuildContext context,
-    WidgetRef ref,
-    ReserveMovementEntity movement,
-  ) async {
+    WidgetRef ref, {
+    required ReserveWithMovements item,
+    required ReserveMovementEntity movement,
+    required double cdiRate,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -207,6 +215,14 @@ class ReserveDetailScreen extends ConsumerWidget {
           movement.reserveId,
           movement.id,
         );
+
+    final remaining = item.movements.where((m) => m.id != movement.id).toList();
+    await _syncReserveTotals(
+      ref,
+      reserve: item.reserve,
+      movements: remaining,
+      cdiRate: cdiRate,
+    );
   }
 
   Future<void> _showMovementSheet(
@@ -351,23 +367,12 @@ class ReserveDetailScreen extends ConsumerWidget {
     );
 
     await ref.read(reserveRepositoryProvider).createMovement(movement);
-
-    final updatedMovements = type == ReserveMovementType.deposit
-        ? [...item.movements, movement]
-        : [...item.movements, movement];
-
-    final result = ReserveCalculator.compute(
+    await _syncReserveTotals(
+      ref,
       reserve: item.reserve,
-      movements: updatedMovements,
+      movements: [...item.movements, movement],
       cdiRate: cdiRate,
     );
-
-    await ref.read(reserveRepositoryProvider).updateReserve(
-          item.reserve.copyWith(
-            currentValue: result.currentValue,
-            accumulatedYield: result.totalAccumulated,
-          ),
-        );
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -381,6 +386,25 @@ class ReserveDetailScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Future<void> _syncReserveTotals(
+    WidgetRef ref, {
+    required ReserveEntity reserve,
+    required List<ReserveMovementEntity> movements,
+    required double cdiRate,
+  }) async {
+    final result = ReserveCalculator.compute(
+      reserve: reserve,
+      movements: movements,
+      cdiRate: cdiRate,
+    );
+    await ref.read(reserveRepositoryProvider).updateReserve(
+          reserve.copyWith(
+            currentValue: result.currentValue,
+            accumulatedYield: result.totalAccumulated,
+          ),
+        );
   }
 }
 

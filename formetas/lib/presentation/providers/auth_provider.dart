@@ -8,7 +8,7 @@ final authStateProvider = StreamProvider<UserEntity?>((ref) {
 });
 
 final currentUserProvider = Provider<UserEntity?>((ref) {
-  return ref.watch(authRepositoryProvider).currentUser;
+  return ref.watch(authStateProvider).valueOrNull;
 });
 
 final selectedMonthProvider = StateProvider<DateTime>((ref) {

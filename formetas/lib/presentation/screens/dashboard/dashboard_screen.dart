@@ -13,6 +13,7 @@ import '../../providers/data_providers.dart';
 import '../../widgets/balance_card.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/formetas_card.dart';
+import '../../widgets/movement_tile.dart';
 import '../../widgets/transaction_tile.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -23,18 +24,30 @@ class DashboardScreen extends ConsumerWidget {
     final stats = ref.watch(dashboardStatsProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
     final user = ref.watch(currentUserProvider);
+    final movements = ref.watch(movementsProvider).valueOrNull ?? [];
+    final recentMovements = movements.take(10).toList();
 
     return Scaffold(
       body: SafeArea(
         child: stats.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erro: $e')),
+          error: (e, _) => _DataLoadError(
+            error: e,
+            onRetry: () {
+              ref.invalidate(transactionsProvider);
+              ref.invalidate(investmentsProvider);
+              ref.invalidate(reservesWithMovementsProvider);
+              ref.invalidate(transfersProvider);
+              ref.invalidate(settingsProvider);
+            },
+          ),
           data: (data) => RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(transactionsProvider);
               ref.invalidate(investmentsProvider);
               ref.invalidate(reservesWithMovementsProvider);
               ref.invalidate(transfersProvider);
+              ref.invalidate(settingsProvider);
             },
             child: CustomScrollView(
               slivers: [
@@ -259,7 +272,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (data.recentTransactions.isEmpty)
+                if (recentMovements.isEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
@@ -276,17 +289,21 @@ class DashboardScreen extends ConsumerWidget {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        final tx = data.recentTransactions[index];
+                        final item = recentMovements[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: TransactionTile(
-                            transaction: tx,
-                            onTap: () =>
-                                context.push('/transaction/edit/${tx.id}'),
+                          child: MovementTile(
+                            entry: item,
+                            onTap: () {
+                              final tx = item.transaction;
+                              if (tx != null) {
+                                context.push('/transaction/edit/${tx.id}');
+                              }
+                            },
                           ),
                         );
                       },
-                      childCount: data.recentTransactions.length,
+                      childCount: recentMovements.length,
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -405,6 +422,63 @@ class _MiniStat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DataLoadError extends StatelessWidget {
+  const _DataLoadError({required this.error, required this.onRetry});
+
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = error.toString().toLowerCase();
+    final isPermission = raw.contains('permission-denied') ||
+        raw.contains('permission denied') ||
+        raw.contains("doesn't have permission") ||
+        raw.contains('does not have permission');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: AppColors.gray.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isPermission
+                  ? 'Ainda estamos liberando o acesso da sua conta.'
+                  : 'Não foi possível carregar seus dados.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isPermission
+                  ? 'Toque em tentar de novo daqui a alguns segundos.'
+                  : 'Verifique sua conexão e tente novamente.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.gray, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tentar de novo'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

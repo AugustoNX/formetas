@@ -18,5 +18,5 @@ class UserEntity extends Equatable {
   final bool emailVerified;
 
   @override
-  List<Object?> get props => [id, email];
+  List<Object?> get props => [id, email, name, emailVerified, photoUrl];
 }

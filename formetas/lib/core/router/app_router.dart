@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../presentation/providers/auth_controller.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/providers/core_providers.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
@@ -26,21 +27,24 @@ import '../../presentation/screens/transactions/transaction_form_screen.dart';
 import '../../presentation/screens/transactions/transactions_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refresh = GoRouterRefreshStream(
+    ref.read(authRepositoryProvider).authStateChanges,
+  );
+  ref.onDispose(refresh.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splash',
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authRepositoryProvider).authStateChanges,
-    ),
+    refreshListenable: refresh,
     redirect: (context, state) {
-      final isLoading = authState.isLoading;
+      final authState = ref.read(authStateProvider);
+      final isBusy = ref.read(authControllerProvider).isLoading;
       final user = authState.valueOrNull;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       final isSplash = state.matchedLocation == '/splash';
 
       if (isSplash) return null;
-      if (isLoading) return null;
+      if (isBusy) return null;
+      if (authState.isLoading) return null;
 
       if (user == null && !isAuthRoute) return '/auth/login';
       if (user != null && isAuthRoute) return '/';
@@ -182,6 +186,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  ref.listen(authControllerProvider, (_, __) => router.refresh());
+  return router;
 });
 
 class GoRouterRefreshStream extends ChangeNotifier {

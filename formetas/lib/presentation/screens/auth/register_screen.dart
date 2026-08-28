@@ -46,7 +46,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: AppColors.secondary,
           ),
         );
-        context.go('/');
       }
     } on AuthFailure catch (e) {
       if (mounted) {
