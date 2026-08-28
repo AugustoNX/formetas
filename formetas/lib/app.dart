@@ -15,7 +15,6 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/system_ui_helper.dart';
 import 'domain/entities/settings_entity.dart';
 import 'presentation/providers/core_providers.dart';
-import 'presentation/widgets/adaptive_app_frame.dart';
 import 'presentation/widgets/system_ui_scope.dart';
 
 class FormetasApp extends ConsumerWidget {
@@ -46,9 +45,6 @@ class FormetasApp extends ConsumerWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         scrollBehavior: const _AppScrollBehavior(),
-        builder: (context, child) => AdaptiveAppFrame(
-          child: child ?? const SizedBox.shrink(),
-        ),
         routerConfig: router,
       ),
     );

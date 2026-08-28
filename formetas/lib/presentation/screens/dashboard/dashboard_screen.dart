@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/layout/adaptive_layout.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../providers/auth_provider.dart';
@@ -305,7 +306,8 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const crossCount = 2;
+    final width = MediaQuery.sizeOf(context).width;
+    final crossCount = width >= AppBreakpoints.desktop ? 4 : 2;
     final rows = <Widget>[];
 
     for (var i = 0; i < children.length; i += crossCount) {

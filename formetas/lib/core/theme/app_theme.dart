@@ -68,6 +68,17 @@ abstract final class AppTheme {
           return const TextStyle(color: AppColors.gray, fontSize: 12);
         }),
       ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: AppColors.white,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+        selectedIconTheme: const IconThemeData(color: AppColors.primary),
+        selectedLabelTextStyle: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedIconTheme: const IconThemeData(color: AppColors.gray),
+        unselectedLabelTextStyle: const TextStyle(color: AppColors.gray),
+      ),
     );
 
     return base.copyWith(
@@ -122,6 +133,10 @@ abstract final class AppTheme {
         showDragHandle: true,
       ),
       navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.darkSurface,
+        indicatorColor: AppColors.secondary.withValues(alpha: 0.2),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
         backgroundColor: AppColors.darkSurface,
         indicatorColor: AppColors.secondary.withValues(alpha: 0.2),
       ),

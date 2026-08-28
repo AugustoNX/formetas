@@ -1,4 +1,7 @@
 abstract final class AppBreakpoints {
-  /// Largura máxima do app no computador. No celular, usa a tela inteira.
-  static const contentMaxWidth = 760.0;
+  /// A partir desta largura a navegação vai para a lateral (desktop/web).
+  static const desktop = 900.0;
+
+  /// Rail com rótulos ao lado dos ícones.
+  static const desktopExtended = 1100.0;
 }
