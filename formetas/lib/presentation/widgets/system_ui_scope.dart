@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/utils/system_ui_helper.dart';
@@ -15,19 +16,23 @@ class _SystemUiScopeState extends State<SystemUiScope> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) return;
     WidgetsBinding.instance.addObserver(this);
     SystemUiHelper.hideNavigationBar();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    SystemUiHelper.dispose();
+    if (!kIsWeb) {
+      WidgetsBinding.instance.removeObserver(this);
+      SystemUiHelper.dispose();
+    }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kIsWeb) return;
     if (state == AppLifecycleState.resumed) {
       SystemUiHelper.hideNavigationBar();
     }
@@ -35,6 +40,7 @@ class _SystemUiScopeState extends State<SystemUiScope> with WidgetsBindingObserv
 
   @override
   void didChangeMetrics() {
+    if (kIsWeb) return;
     SystemUiHelper.scheduleHideNavigationBar();
   }
 

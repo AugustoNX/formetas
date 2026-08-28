@@ -146,13 +146,7 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ],
                         const SizedBox(height: 20),
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.4,
+                        _StatsGrid(
                           children: [
                             BalanceCard(
                               title: 'Receitas',
@@ -301,6 +295,47 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    const crossCount = 2;
+    final rows = <Widget>[];
+
+    for (var i = 0; i < children.length; i += crossCount) {
+      final slice = children.sublist(
+        i,
+        i + crossCount > children.length ? children.length : i + crossCount,
+      );
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var j = 0; j < slice.length; j++) ...[
+                if (j > 0) const SizedBox(width: 12),
+                Expanded(child: slice[j]),
+              ],
+              for (var j = slice.length; j < crossCount; j++) ...[
+                const SizedBox(width: 12),
+                const Expanded(child: SizedBox.shrink()),
+              ],
+            ],
+          ),
+        ),
+      );
+      if (i + crossCount < children.length) {
+        rows.add(const SizedBox(height: 12));
+      }
+    }
+
+    return Column(children: rows);
   }
 }
 

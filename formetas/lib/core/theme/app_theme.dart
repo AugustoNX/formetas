@@ -7,6 +7,7 @@ abstract final class AppTheme {
   static ThemeData get light {
     final base = ThemeData(
       useMaterial3: true,
+      visualDensity: VisualDensity.standard,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -45,9 +46,17 @@ abstract final class AppTheme {
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
+      dialogTheme: const DialogThemeData(
+        constraints: BoxConstraints(maxWidth: 480),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: 480),
+        showDragHandle: true,
+      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.white,
         indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+        height: 72,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const TextStyle(
@@ -69,6 +78,7 @@ abstract final class AppTheme {
   static ThemeData get dark {
     final base = ThemeData(
       useMaterial3: true,
+      visualDensity: VisualDensity.standard,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.secondary,
@@ -103,6 +113,13 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
+      ),
+      dialogTheme: const DialogThemeData(
+        constraints: BoxConstraints(maxWidth: 480),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: 480),
+        showDragHandle: true,
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.darkSurface,

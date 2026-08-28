@@ -80,6 +80,10 @@ class MainShell extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: 480,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

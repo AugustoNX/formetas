@@ -2,6 +2,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/system_ui_helper.dart';
 import 'domain/entities/settings_entity.dart';
 import 'presentation/providers/core_providers.dart';
+import 'presentation/widgets/adaptive_app_frame.dart';
 import 'presentation/widgets/system_ui_scope.dart';
 
 class FormetasApp extends ConsumerWidget {
@@ -43,6 +45,10 @@ class FormetasApp extends ConsumerWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        scrollBehavior: const _AppScrollBehavior(),
+        builder: (context, child) => AdaptiveAppFrame(
+          child: child ?? const SizedBox.shrink(),
+        ),
         routerConfig: router,
       ),
     );
@@ -82,4 +88,16 @@ Future<void> bootstrap() async {
       child: const FormetasApp(),
     ),
   );
+}
+
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
 }

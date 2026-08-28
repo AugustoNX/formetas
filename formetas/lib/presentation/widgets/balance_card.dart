@@ -27,6 +27,8 @@ class BalanceCard extends StatelessWidget {
     final isNegative = value < 0;
 
     return Container(
+      width: double.infinity,
+      alignment: Alignment.topLeft,
       padding: EdgeInsets.all(compact ? 16 : 20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
