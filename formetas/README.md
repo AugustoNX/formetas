@@ -105,8 +105,7 @@ Comparam receitas, despesas e economia no tempo: categorias, médias, maiores la
 - Login, cadastro e recuperação de senha (Firebase Auth)
 - Home com saldo do mês, receitas, despesas, economia (caixinhas) e investimentos
 - Extrato de movimentações com filtro por tipo, mês e busca
-- Caixinhas com detalhe, aporte/resgate e simulação de rendimento
-- Carteira de investimentos com investir / resgatar
+- Carteira reunindo caixinhas (aporte, resgate, simulação de rendimento) e investimentos
 - Transferência entre bolsos sem sujar o extrato
 - Metas financeiras
 - Relatórios e gráficos
@@ -114,6 +113,20 @@ Comparam receitas, despesas e economia no tempo: categorias, médias, maiores la
 - Tema claro / escuro
 - **Celular:** barra inferior e botão Novo  
 - **Computador / web:** menu na lateral e conteúdo em tela cheia
+
+### Duas experiências, os mesmos dados
+
+O aplicativo abre em uma de duas versões, e a escolha fica salva no aparelho:
+
+| Formetas (financeiro) | Formigueiro (gamificado) |
+| --- | --- |
+| Início | Entrada |
+| Movimentos | O mês |
+| Carteira | Armazéns |
+| Metas | Missões |
+| Relatórios | Conquistas |
+
+Entrar no formigueiro troca a navegação inteira, não só a tela. Sai-se pelo botão "Voltar ao Formetas" na Entrada. As duas versões leem exatamente os mesmos números.
 
 ---
 
@@ -141,9 +154,27 @@ users/{uid}/
   transfers/
   goals/
   categories/
+  formigueiro/
 ```
 
 As regras importantes (saldo acumulado, rendimento da caixinha, teto da transferência) ficam no **domínio**, não na tela. A UI só pede e mostra.
+
+### Camada do Formigueiro
+
+A gamificação é uma camada de **leitura** sobre o sistema financeiro:
+
+```
+lógica financeira  →  AnthillService  →  salas do Formigueiro
+```
+
+- `AnthillService` recebe as mesmas listas que alimentam o dashboard e devolve um `AnthillSnapshot` (folhinhas, nível, energia, inverno, conquistas, missões).
+- Nível, conquistas e missões vêm do catálogo em `core/constants/anthill_catalog.dart`, fácil de ajustar.
+- `users/{uid}/formigueiro` guarda apenas nome da formiga, quando cada conquista aconteceu e preferências de animação. Nenhum valor financeiro é duplicado.
+- Saldo, caixinhas e investimentos são calculados por `PatrimonyCalculator`, a mesma fonte usada por dashboard, relatórios e transferências.
+- Cada sala é montada sobre `AnthillRoom`, que cuida de carregar o snapshot, atualizar ao puxar e organizar as colunas em telas grandes.
+- `AppMode` guarda em qual versão o usuário está. É só uma preferência de navegação: não altera nenhum cálculo.
+
+Removendo `presentation/screens/anthill/`, `presentation/widgets/anthill/`, `anthill_providers.dart` e o `ShellRoute` do formigueiro, o aplicativo financeiro continua funcionando igual.
 
 ---
 

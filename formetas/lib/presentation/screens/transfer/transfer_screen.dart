@@ -14,6 +14,7 @@ import '../../../domain/services/transfer_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/anthill/anthill_feedback.dart';
 
 class TransferScreen extends ConsumerStatefulWidget {
   const TransferScreen({
@@ -110,9 +111,15 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           );
 
       if (mounted) {
+        // Guardar folhinhas é sair do saldo rumo a um armazém ou aos
+        // investimentos; o caminho de volta mantém a mensagem neutra.
+        final isStoring = _fromType == WalletType.balance &&
+            _toType != WalletType.balance;
+        final gamified = isStoring ? AnthillFeedback.stored(ref, amount) : null;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(AppStrings.transferSuccess),
+          SnackBar(
+            content: gamified ?? const Text(AppStrings.transferSuccess),
             backgroundColor: AppColors.secondary,
           ),
         );

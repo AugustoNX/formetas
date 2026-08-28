@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/layout/adaptive_layout.dart';
+import '../../widgets/anthill/anthill_celebration_host.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
@@ -11,48 +12,50 @@ class MainShell extends StatelessWidget {
   final Widget child;
 
   static const _destinations = [
-    (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Início'),
+    (
+      icon: Icons.home_outlined,
+      selected: Icons.home_rounded,
+      label: 'Início',
+      route: '/',
+    ),
     (
       icon: Icons.swap_horiz_outlined,
       selected: Icons.swap_horiz_rounded,
       label: 'Movimentos',
+      route: '/transactions',
     ),
     (
-      icon: Icons.trending_up_outlined,
-      selected: Icons.trending_up_rounded,
-      label: 'Investir',
+      icon: Icons.account_balance_wallet_outlined,
+      selected: Icons.account_balance_wallet_rounded,
+      label: 'Carteira',
+      route: '/carteira',
     ),
-    (icon: Icons.flag_outlined, selected: Icons.flag_rounded, label: 'Metas'),
+    (
+      icon: Icons.flag_outlined,
+      selected: Icons.flag_rounded,
+      label: 'Metas',
+      route: '/goals',
+    ),
     (
       icon: Icons.bar_chart_outlined,
       selected: Icons.bar_chart_rounded,
       label: 'Relatórios',
+      route: '/reports',
     ),
   ];
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location == '/') return 0;
-    if (location.startsWith('/transactions')) return 1;
-    if (location.startsWith('/investments')) return 2;
-    if (location.startsWith('/goals')) return 3;
-    if (location.startsWith('/reports')) return 4;
-    return 0;
+
+    final index = _destinations.indexWhere(
+      (item) => item.route != '/' && location.startsWith(item.route),
+    );
+    return index < 0 ? 0 : index;
   }
 
   void _onTap(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/');
-      case 1:
-        context.go('/transactions');
-      case 2:
-        context.go('/investments');
-      case 3:
-        context.go('/goals');
-      case 4:
-        context.go('/reports');
-    }
+    context.go(_destinations[index].route);
   }
 
   @override
@@ -61,32 +64,28 @@ class MainShell extends StatelessWidget {
         MediaQuery.sizeOf(context).width >= AppBreakpoints.desktop;
 
     if (isDesktop) {
-      return _DesktopShell(
-        currentIndex: _currentIndex(context),
-        onDestinationSelected: (i) => _onTap(context, i),
-        onAdd: () => _showAddMenu(context, desktop: true),
-        child: child,
+      return AnthillCelebrationHost(
+        child: _DesktopShell(
+          currentIndex: _currentIndex(context),
+          onDestinationSelected: (i) => _onTap(context, i),
+          onAdd: () => _showAddMenu(context, desktop: true),
+          child: child,
+        ),
       );
     }
 
-    return Scaffold(
-      body: child,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddMenu(context, desktop: false),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Novo'),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex(context),
-        onDestinationSelected: (i) => _onTap(context, i),
-        destinations: [
-          for (final item in _destinations)
-            NavigationDestination(
-              icon: Icon(item.icon),
-              selectedIcon: Icon(item.selected),
-              label: item.label,
-            ),
-        ],
+    return AnthillCelebrationHost(
+      child: Scaffold(
+        body: child,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _showAddMenu(context, desktop: false),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Novo'),
+        ),
+        bottomNavigationBar: _BottomNavigation(
+          currentIndex: _currentIndex(context),
+          onDestinationSelected: (i) => _onTap(context, i),
+        ),
       ),
     );
   }
@@ -94,18 +93,7 @@ class MainShell extends StatelessWidget {
   void _showAddMenu(BuildContext context, {required bool desktop}) {
     void open(String route) {
       Navigator.pop(context);
-      const tabs = {
-        '/',
-        '/transactions',
-        '/investments',
-        '/goals',
-        '/reports',
-      };
-      if (tabs.contains(route)) {
-        context.go(route);
-      } else {
-        context.push(route);
-      }
+      context.push(route);
     }
 
     final content = _AddMenuContent(onSelect: open);
@@ -146,6 +134,55 @@ class MainShell extends StatelessWidget {
   }
 }
 
+class _BottomNavigation extends StatelessWidget {
+  const _BottomNavigation({
+    required this.currentIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+
+    return MediaQuery(
+      data: media.copyWith(
+        textScaler: media.textScaler.clamp(maxScaleFactor: 1.1),
+      ),
+      child: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 11,
+              height: 1.1,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+            ),
+          ),
+          iconTheme: const WidgetStatePropertyAll(IconThemeData(size: 22)),
+        ),
+        child: NavigationBar(
+          height: 74,
+          selectedIndex: currentIndex,
+          onDestinationSelected: onDestinationSelected,
+          destinations: [
+            for (final item in MainShell._destinations)
+              NavigationDestination(
+                icon: Icon(item.icon),
+                selectedIcon: Icon(item.selected),
+                label: item.label,
+                tooltip: item.label,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DesktopShell extends StatelessWidget {
   const _DesktopShell({
     required this.currentIndex,
@@ -175,6 +212,7 @@ class _DesktopShell extends StatelessWidget {
               right: false,
               child: NavigationRail(
                 extended: extended,
+                scrollable: true,
                 minWidth: 88,
                 minExtendedWidth: 232,
                 selectedIndex: currentIndex,
@@ -334,9 +372,9 @@ class _AddMenuContent extends StatelessWidget {
         _AddOption(
           icon: Icons.trending_up_rounded,
           color: AppColors.investment,
-          label: 'Investimentos',
-          subtitle: 'Ver carteira e transferir',
-          onTap: () => onSelect('/investments'),
+          label: 'Investimento',
+          subtitle: 'Cadastrar uma carteira de investimentos',
+          onTap: () => onSelect('/investment/new'),
         ),
         _AddOption(
           icon: Icons.flag_rounded,

@@ -70,10 +70,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       if (tx.type == TransactionType.investment) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Investimentos são gerenciados na tela de Investimentos.'),
+            content: Text('Investimentos são gerenciados na Carteira.'),
           ),
         );
-        context.go('/investments');
+        context.go('/carteira?aba=investimentos');
         return;
       }
       setState(() {

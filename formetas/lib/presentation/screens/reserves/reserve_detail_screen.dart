@@ -15,6 +15,7 @@ import '../../../domain/entities/reserve_movement_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/anthill/anthill_feedback.dart';
 
 class ReserveDetailScreen extends ConsumerWidget {
   const ReserveDetailScreen({super.key, required this.reserveId});
@@ -375,13 +376,17 @@ class ReserveDetailScreen extends ConsumerWidget {
     );
 
     if (context.mounted) {
+      final isDeposit = type == ReserveMovementType.deposit;
+      final gamified = isDeposit ? AnthillFeedback.stored(ref, amount) : null;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            type == ReserveMovementType.deposit
-                ? AppStrings.reserveDepositSuccess
-                : AppStrings.reserveWithdrawSuccess,
-          ),
+          content: gamified ??
+              Text(
+                isDeposit
+                    ? AppStrings.reserveDepositSuccess
+                    : AppStrings.reserveWithdrawSuccess,
+              ),
           backgroundColor: AppColors.secondary,
         ),
       );

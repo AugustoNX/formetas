@@ -10,123 +10,119 @@ import '../../../core/utils/reserve_calculator.dart';
 import '../../../domain/entities/reserve_entity.dart';
 import '../../providers/data_providers.dart';
 
-class ReservesScreen extends ConsumerWidget {
-  const ReservesScreen({super.key});
+/// Lista de caixinhas. Vive dentro da Carteira, por isso não tem Scaffold.
+class ReservesView extends ConsumerWidget {
+  const ReservesView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reserves = ref.watch(reservesWithMovementsProvider);
     final settings = ref.watch(settingsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Caixinha'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            onPressed: () => context.push('/reserve/new'),
-          ),
-        ],
-      ),
-      body: reserves.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
-        data: (list) {
-          if (list.isEmpty) {
-            return Center(
+    return reserves.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Erro: $e')),
+      data: (list) {
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.savings_outlined,
+                  size: 64,
+                  color: AppColors.gray.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Nenhuma caixinha cadastrada',
+                  style: TextStyle(color: AppColors.gray),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'CDB, caixinha, poupança e mais',
+                  style: TextStyle(color: AppColors.gray, fontSize: 12),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => context.push('/reserve/new'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Criar caixinha'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final cdiRate =
+            settings.valueOrNull?.cdiRate ?? AppConstants.defaultCdiRate;
+        var totalValue = 0.0;
+        var totalYield = 0.0;
+
+        for (final item in list) {
+          final result = ReserveCalculator.compute(
+            reserve: item.reserve,
+            movements: item.movements,
+            cdiRate: cdiRate,
+          );
+          totalValue += result.currentValue;
+          totalYield += result.totalAccumulated;
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.secondary, AppColors.primary],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.savings_outlined,
-                      size: 64, color: AppColors.gray.withValues(alpha: 0.5)),
-                  const SizedBox(height: 16),
                   Text(
-                    'Nenhuma reserva cadastrada',
-                    style: TextStyle(color: AppColors.gray),
+                    'Reserva e economia',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'CDB, caixinha, poupança e mais',
-                    style: TextStyle(color: AppColors.gray, fontSize: 12),
+                    CurrencyFormatter.format(totalValue),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () => context.push('/reserve/new'),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Adicionar reserva'),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.secondary),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Rendimento acumulado: ${CurrencyFormatter.format(totalYield)}',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
                   ),
                 ],
               ),
-            );
-          }
-
-          final cdiRate = settings.valueOrNull?.cdiRate ?? AppConstants.defaultCdiRate;
-          var totalValue = 0.0;
-          var totalYield = 0.0;
-
-          for (final item in list) {
-            final result = ReserveCalculator.compute(
-              reserve: item.reserve,
-              movements: item.movements,
-              cdiRate: cdiRate,
-            );
-            totalValue += result.currentValue;
-            totalYield += result.totalAccumulated;
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.secondary, AppColors.primary],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reserva e economia',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      CurrencyFormatter.format(totalValue),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Rendimento acumulado: ${CurrencyFormatter.format(totalYield)}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              ...list.map((item) {
-                final result = ReserveCalculator.compute(
-                  reserve: item.reserve,
-                  movements: item.movements,
-                  cdiRate: cdiRate,
-                );
-                return _ReserveCard(
-                  reserve: item.reserve,
-                  result: result,
-                  onTap: () => context.push('/reserve/${item.reserve.id}'),
-                );
-              }),
-            ],
-          );
-        },
-      ),
+            ),
+            const SizedBox(height: 20),
+            ...list.map((item) {
+              final result = ReserveCalculator.compute(
+                reserve: item.reserve,
+                movements: item.movements,
+                cdiRate: cdiRate,
+              );
+              return _ReserveCard(
+                reserve: item.reserve,
+                result: result,
+                onTap: () => context.push('/reserve/${item.reserve.id}'),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }
@@ -162,7 +158,10 @@ class _ReserveCard extends StatelessWidget {
                       color: AppColors.secondary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.savings_outlined, color: AppColors.secondary),
+                    child: const Icon(
+                      Icons.savings_outlined,
+                      color: AppColors.secondary,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -177,7 +176,8 @@ class _ReserveCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${ReserveTypeLabels.label(reserve.type)}${reserve.bank != null ? ' · ${reserve.bank}' : ''}',
+                          '${ReserveTypeLabels.label(reserve.type)}'
+                          '${reserve.bank != null ? ' · ${reserve.bank}' : ''}',
                           style: TextStyle(color: AppColors.gray, fontSize: 12),
                         ),
                       ],
@@ -242,7 +242,10 @@ class _YieldChip extends StatelessWidget {
     return Column(
       children: [
         Text(label, style: TextStyle(color: AppColors.gray, fontSize: 11)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
       ],
     );
   }

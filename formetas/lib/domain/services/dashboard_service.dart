@@ -1,9 +1,8 @@
-import '../../core/utils/investment_calculator.dart';
 import '../../core/utils/monthly_balance_calculator.dart';
+import '../../core/utils/patrimony_calculator.dart';
 import '../../domain/entities/dashboard_entity.dart';
 import '../../domain/entities/investment_entity.dart';
 import '../../domain/entities/reserve_movement_entity.dart';
-import '../../core/utils/reserve_calculator.dart';
 import '../../domain/entities/settings_entity.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
@@ -46,39 +45,19 @@ class DashboardService {
 
     final monthlySavings = monthlyIncome - monthlyExpense;
 
-    var totalInvestments = 0.0;
-    var totalYield = 0.0;
+    final investmentTotals = PatrimonyCalculator.investments(
+      investments: investments,
+      cdiRate: settings.cdiRate,
+    );
+    final totalInvestments = investmentTotals.total;
+    final totalYield = investmentTotals.accumulatedYield;
 
-    for (final inv in investments) {
-      final hasYieldConfig = inv.cdiPercent != null || inv.fixedRate != null;
-      if (hasYieldConfig) {
-        final result = InvestmentCalculator.calculate(
-          initialValue: inv.initialValue,
-          startDate: inv.startDate,
-          cdiRate: settings.cdiRate,
-          cdiPercent: inv.cdiPercent,
-          fixedRate: inv.fixedRate,
-          monthlyContribution: inv.monthlyContribution,
-        );
-        totalInvestments += result.currentValue;
-        totalYield += result.totalAccumulated;
-      } else {
-        totalInvestments += inv.currentValue;
-      }
-    }
-
-    var totalReserves = 0.0;
-    var reserveYield = 0.0;
-
-    for (final item in reservesWithMovements) {
-      final result = ReserveCalculator.compute(
-        reserve: item.reserve,
-        movements: item.movements,
-        cdiRate: settings.cdiRate,
-      );
-      totalReserves += result.currentValue;
-      reserveYield += result.totalAccumulated;
-    }
+    final reserveTotals = PatrimonyCalculator.reserves(
+      reserves: reservesWithMovements,
+      cdiRate: settings.cdiRate,
+    );
+    final totalReserves = reserveTotals.total;
+    final reserveYield = reserveTotals.accumulatedYield;
 
     final expensesByCategory = <String, double>{};
     final incomeByCategory = <String, double>{};
@@ -178,42 +157,20 @@ class DashboardService {
       }
     }
 
-    var totalInvested = 0.0;
-    var totalYield = 0.0;
-    var totalInvestmentsValue = 0.0;
+    final investmentTotals = PatrimonyCalculator.investments(
+      investments: investments,
+      cdiRate: settings.cdiRate,
+    );
+    final totalInvested = investmentTotals.principal;
+    final totalYield = investmentTotals.accumulatedYield;
+    final totalInvestmentsValue = investmentTotals.total;
 
-    for (final inv in investments) {
-      final hasYieldConfig = inv.cdiPercent != null || inv.fixedRate != null;
-      if (hasYieldConfig) {
-        final result = InvestmentCalculator.calculate(
-          initialValue: inv.initialValue,
-          startDate: inv.startDate,
-          cdiRate: settings.cdiRate,
-          cdiPercent: inv.cdiPercent,
-          fixedRate: inv.fixedRate,
-          monthlyContribution: inv.monthlyContribution,
-        );
-        totalInvested += inv.initialValue;
-        totalYield += result.totalAccumulated;
-        totalInvestmentsValue += result.currentValue;
-      } else {
-        totalInvested += inv.initialValue;
-        totalInvestmentsValue += inv.currentValue;
-      }
-    }
-
-    var totalReserves = 0.0;
-    var reserveYield = 0.0;
-
-    for (final item in reservesWithMovements) {
-      final result = ReserveCalculator.compute(
-        reserve: item.reserve,
-        movements: item.movements,
-        cdiRate: settings.cdiRate,
-      );
-      totalReserves += result.currentValue;
-      reserveYield += result.totalAccumulated;
-    }
+    final reserveTotals = PatrimonyCalculator.reserves(
+      reserves: reservesWithMovements,
+      cdiRate: settings.cdiRate,
+    );
+    final totalReserves = reserveTotals.total;
+    final reserveYield = reserveTotals.accumulatedYield;
 
     final currentBalance = summaries.isEmpty ? 0.0 : summaries.last.closingBalance;
     final netWorth = currentBalance + totalInvestmentsValue + totalReserves;
@@ -238,15 +195,8 @@ class DashboardService {
     List<TransactionEntity> transactions,
     List<TransferEntity> transfers,
     DateTime selectedMonth,
-  ) {
-    final dates = <DateTime>[
-      ...transactions.map((t) => t.date),
-      ...transfers.map((t) => t.date),
-    ];
-    if (dates.isEmpty) return selectedMonth;
-    final earliest = dates.reduce((a, b) => a.isBefore(b) ? a : b);
-    return AppDateUtils.startOfMonth(earliest);
-  }
+  ) =>
+      PatrimonyCalculator.earliestMonth(transactions, transfers, selectedMonth);
 
   String _topCategory(Map<String, double> map) {
     if (map.isEmpty) return '-';

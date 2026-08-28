@@ -10,6 +10,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/anthill/anthill_entry_banner.dart';
 import '../../widgets/balance_card.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/formetas_card.dart';
@@ -100,6 +101,8 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+                        const AnthillEntryBanner(),
                         const SizedBox(height: 20),
                         _MonthSelector(
                           selectedMonth: selectedMonth,
@@ -177,7 +180,7 @@ class DashboardScreen extends ConsumerWidget {
                               compact: true,
                             ),
                             GestureDetector(
-                              onTap: () => context.push('/reserves'),
+                              onTap: () => context.go('/carteira'),
                               child: BalanceCard(
                                 title: 'Economia',
                                 value: data.totalReserves,
@@ -186,12 +189,16 @@ class DashboardScreen extends ConsumerWidget {
                                 compact: true,
                               ),
                             ),
-                            BalanceCard(
-                              title: 'Investimentos',
-                              value: data.totalInvestments,
-                              color: AppColors.investment,
-                              icon: Icons.trending_up_rounded,
-                              compact: true,
+                            GestureDetector(
+                              onTap: () =>
+                                  context.go('/carteira?aba=investimentos'),
+                              child: BalanceCard(
+                                title: 'Investimentos',
+                                value: data.totalInvestments,
+                                color: AppColors.investment,
+                                icon: Icons.trending_up_rounded,
+                                compact: true,
+                              ),
                             ),
                           ],
                         ),

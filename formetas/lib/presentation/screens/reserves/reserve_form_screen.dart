@@ -237,7 +237,7 @@ class _ReserveFormScreenState extends ConsumerState<ReserveFormScreen> {
                 title: const Text('Valor inicial'),
                 subtitle: Text(CurrencyFormatter.format(_existing!.initialValue)),
                 trailing: TextButton(
-                  onPressed: () => context.push('/reserve/${_existing!.id}'),
+                  onPressed: () => context.pop(),
                   child: const Text('Movimentar'),
                 ),
               ),

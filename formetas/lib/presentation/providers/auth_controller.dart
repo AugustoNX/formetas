@@ -4,6 +4,7 @@ import '../../core/errors/failures.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/transaction_repository.dart';
+import 'anthill_providers.dart';
 import 'auth_provider.dart';
 import 'core_providers.dart';
 import 'data_providers.dart';
@@ -69,6 +70,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     _ref.invalidate(goalsProvider);
     _ref.invalidate(settingsProvider);
     _ref.invalidate(customCategoriesProvider);
+    _ref.invalidate(antProfileProvider);
     _ref.read(selectedMonthProvider.notifier).state =
         DateTime(DateTime.now().year, DateTime.now().month);
     _ref.read(transactionFilterProvider.notifier).state =

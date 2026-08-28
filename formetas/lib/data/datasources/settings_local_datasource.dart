@@ -9,6 +9,7 @@ class SettingsLocalDataSource {
 
   static const _themeKey = 'theme_mode';
   static const _onboardingKey = 'onboarding_complete';
+  static const _appModeKey = 'app_mode';
 
   AppThemeMode getThemeMode() {
     final value = _prefs.getString(_themeKey);
@@ -21,6 +22,18 @@ class SettingsLocalDataSource {
 
   Future<void> setThemeMode(AppThemeMode mode) async {
     await _prefs.setString(_themeKey, mode.name);
+  }
+
+  AppMode getAppMode() {
+    final value = _prefs.getString(_appModeKey);
+    return AppMode.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => AppMode.financial,
+    );
+  }
+
+  Future<void> setAppMode(AppMode mode) async {
+    await _prefs.setString(_appModeKey, mode.name);
   }
 
   bool isOnboardingComplete() => _prefs.getBool(_onboardingKey) ?? false;

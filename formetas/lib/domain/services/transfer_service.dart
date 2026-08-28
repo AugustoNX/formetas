@@ -1,8 +1,8 @@
 import 'package:uuid/uuid.dart';
 
-import '../../core/utils/monthly_balance_calculator.dart';
-import '../../core/utils/reserve_calculator.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/patrimony_calculator.dart';
+import '../../core/utils/reserve_calculator.dart';
 import '../entities/investment_entity.dart';
 import '../entities/reserve_movement_entity.dart';
 import '../entities/transaction_entity.dart';
@@ -39,19 +39,11 @@ class TransferService {
     required List<TransferEntity> transfers,
     DateTime? until,
   }) {
-    if (transactions.isEmpty && transfers.isEmpty) return 0;
-
-    final reference = until ?? DateTime.now();
-    final fromMonth = _earliestMonth(transactions, transfers, reference);
-    final summaries = MonthlyBalanceCalculator.compute(
+    return PatrimonyCalculator.balance(
       transactions: transactions,
       transfers: transfers,
-      fromMonth: fromMonth,
-      toMonth: reference,
+      until: until,
     );
-
-    if (summaries.isEmpty) return 0;
-    return summaries.last.closingBalance;
   }
 
   double availableFrom({
@@ -337,19 +329,5 @@ class TransferService {
       currentValue: investment.currentValue - amount,
     );
     await _investmentRepository.updateInvestment(updated);
-  }
-
-  DateTime _earliestMonth(
-    List<TransactionEntity> transactions,
-    List<TransferEntity> transfers,
-    DateTime reference,
-  ) {
-    final dates = <DateTime>[
-      ...transactions.map((t) => t.date),
-      ...transfers.map((t) => t.date),
-    ];
-    if (dates.isEmpty) return reference;
-    final earliest = dates.reduce((a, b) => a.isBefore(b) ? a : b);
-    return DateTime(earliest.year, earliest.month);
   }
 }

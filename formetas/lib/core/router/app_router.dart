@@ -2,21 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../presentation/providers/app_mode_provider.dart';
 import '../../presentation/providers/auth_controller.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/providers/core_providers.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
+import '../../presentation/screens/anthill/achievements_screen.dart';
+import '../../presentation/screens/anthill/ant_care_screen.dart';
+import '../../presentation/screens/anthill/anthill_entrance_screen.dart';
+import '../../presentation/screens/anthill/anthill_missions_screen.dart';
+import '../../presentation/screens/anthill/anthill_month_screen.dart';
+import '../../presentation/screens/anthill/anthill_shell.dart';
+import '../../presentation/screens/anthill/anthill_storage_screen.dart';
 import '../../presentation/screens/categories/categories_screen.dart';
 import '../../presentation/screens/dashboard/dashboard_screen.dart';
 import '../../presentation/screens/goals/goal_form_screen.dart';
 import '../../presentation/screens/goals/goals_screen.dart';
 import '../../presentation/screens/investments/investment_form_screen.dart';
-import '../../presentation/screens/investments/investments_screen.dart';
 import '../../presentation/screens/reserves/reserve_detail_screen.dart';
 import '../../presentation/screens/reserves/reserve_form_screen.dart';
-import '../../presentation/screens/reserves/reserves_screen.dart';
 import '../../presentation/screens/main/main_shell.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
@@ -25,6 +31,7 @@ import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transfer/transfer_screen.dart';
 import '../../presentation/screens/transactions/transaction_form_screen.dart';
 import '../../presentation/screens/transactions/transactions_screen.dart';
+import '../../presentation/screens/wallet/wallet_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = GoRouterRefreshStream(
@@ -47,57 +54,98 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authState.isLoading) return null;
 
       if (user == null && !isAuthRoute) return '/auth/login';
-      if (user != null && isAuthRoute) return '/';
+      if (user != null && isAuthRoute) return ref.read(appModeProvider).homeRoute;
       return null;
     },
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (_, __) => const SplashScreen(),
+        builder: (_, _) => const SplashScreen(),
       ),
       GoRoute(
         path: '/auth/login',
-        builder: (_, __) => const LoginScreen(),
+        builder: (_, _) => const LoginScreen(),
       ),
       GoRoute(
         path: '/auth/register',
-        builder: (_, __) => const RegisterScreen(),
+        builder: (_, _) => const RegisterScreen(),
       ),
       GoRoute(
         path: '/auth/forgot-password',
-        builder: (_, __) => const ForgotPasswordScreen(),
+        builder: (_, _) => const ForgotPasswordScreen(),
       ),
+      // Experiência financeira: as cinco áreas do controle do dinheiro.
       ShellRoute(
-        builder: (_, __, child) => MainShell(child: child),
+        builder: (_, _, child) => MainShell(child: child),
         routes: [
           GoRoute(
             path: '/',
-            pageBuilder: (_, __) => const NoTransitionPage(
+            pageBuilder: (_, _) => const NoTransitionPage(
               child: DashboardScreen(),
             ),
           ),
           GoRoute(
             path: '/transactions',
-            pageBuilder: (_, __) => const NoTransitionPage(
+            pageBuilder: (_, _) => const NoTransitionPage(
               child: TransactionsScreen(),
             ),
           ),
           GoRoute(
-            path: '/investments',
-            pageBuilder: (_, __) => const NoTransitionPage(
-              child: InvestmentsScreen(),
+            path: '/carteira',
+            pageBuilder: (_, state) => NoTransitionPage(
+              child: WalletScreen(
+                initialTab: WalletTab.fromQuery(
+                  state.uri.queryParameters['aba'],
+                ),
+              ),
             ),
           ),
           GoRoute(
             path: '/goals',
-            pageBuilder: (_, __) => const NoTransitionPage(
+            pageBuilder: (_, _) => const NoTransitionPage(
               child: GoalsScreen(),
             ),
           ),
           GoRoute(
             path: '/reports',
-            pageBuilder: (_, __) => const NoTransitionPage(
+            pageBuilder: (_, _) => const NoTransitionPage(
               child: ReportsScreen(),
+            ),
+          ),
+        ],
+      ),
+      // Experiência do Formigueiro: os mesmos dados, lidos como salas.
+      ShellRoute(
+        builder: (_, _, child) => AnthillShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/formigueiro',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              child: AnthillEntranceScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/formigueiro/mes',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              child: AnthillMonthScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/formigueiro/armazens',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              child: AnthillStorageScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/formigueiro/missoes',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              child: AnthillMissionsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/formigueiro/conquistas',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              child: AchievementsScreen(),
             ),
           ),
         ],
@@ -118,7 +166,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/investment/new',
-        builder: (_, __) => const InvestmentFormScreen(),
+        builder: (_, _) => const InvestmentFormScreen(),
       ),
       GoRoute(
         path: '/investment/edit/:id',
@@ -128,12 +176,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/reserves',
-        builder: (_, __) => const ReservesScreen(),
-      ),
-      GoRoute(
         path: '/reserve/new',
-        builder: (_, __) => const ReserveFormScreen(),
+        builder: (_, _) => const ReserveFormScreen(),
       ),
       GoRoute(
         path: '/reserve/:id',
@@ -151,7 +195,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/goal/new',
-        builder: (_, __) => const GoalFormScreen(),
+        builder: (_, _) => const GoalFormScreen(),
       ),
       GoRoute(
         path: '/goal/edit/:id',
@@ -173,21 +217,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/formigueiro/formiga',
+        builder: (_, _) => const AntCareScreen(),
+      ),
+      GoRoute(
         path: '/categories',
-        builder: (_, __) => const CategoriesScreen(),
+        builder: (_, _) => const CategoriesScreen(),
       ),
       GoRoute(
         path: '/profile',
-        builder: (_, __) => const ProfileScreen(),
+        builder: (_, _) => const ProfileScreen(),
       ),
       GoRoute(
         path: '/settings',
-        builder: (_, __) => const SettingsScreen(),
+        builder: (_, _) => const SettingsScreen(),
       ),
     ],
   );
 
-  ref.listen(authControllerProvider, (_, __) => router.refresh());
+  ref.listen(authControllerProvider, (_, _) => router.refresh());
   return router;
 });
 
