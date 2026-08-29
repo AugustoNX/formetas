@@ -1,3 +1,4 @@
+import '../entities/asset_trade_entity.dart';
 import '../entities/investment_entity.dart';
 import '../entities/movement_entry.dart';
 import '../entities/reserve_movement_entity.dart';
@@ -10,12 +11,16 @@ abstract final class MovementListBuilder {
     required List<TransferEntity> transfers,
     List<ReserveWithMovements> reserves = const [],
     List<InvestmentEntity> investments = const [],
+    List<AssetWithTrades> assets = const [],
   }) {
     final reserveNames = {
       for (final item in reserves) item.reserve.id: item.reserve.name,
     };
+    // Compra e venda de ativos também viajam como transferência, então o
+    // extrato precisa saber traduzir o id do ativo para o ticker.
     final investmentNames = {
       for (final item in investments) item.id: item.name,
+      for (final item in assets) item.asset.id: item.asset.ticker,
     };
 
     final items = <MovementEntry>[

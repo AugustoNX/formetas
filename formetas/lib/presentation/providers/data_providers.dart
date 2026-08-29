@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/asset_calculator.dart';
+import '../../domain/entities/asset_trade_entity.dart';
 import '../../domain/entities/category_entity.dart';
 import '../../domain/entities/dashboard_entity.dart';
 import '../../domain/entities/goal_entity.dart';
@@ -54,6 +56,18 @@ final investmentsProvider = StreamProvider<List<InvestmentEntity>>((ref) {
   return ref.watch(investmentRepositoryProvider).watchInvestments(user.id);
 });
 
+/// Ativos de mercado com seus lançamentos, a matéria-prima da Carteira.
+final assetsProvider = StreamProvider<List<AssetWithTrades>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return Stream.value([]);
+  return ref.watch(assetRepositoryProvider).watchAssets(user.id);
+});
+
+/// Carteira consolidada: posições agrupadas por seção, com totais.
+final portfolioProvider = Provider<AsyncValue<PortfolioSummary>>((ref) {
+  return ref.watch(assetsProvider).whenData(AssetCalculator.portfolio);
+});
+
 final transfersProvider = StreamProvider<List<TransferEntity>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Stream.value([]);
@@ -82,12 +96,14 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
   final transfers = ref.watch(transfersProvider);
   final reserves = ref.watch(reservesWithMovementsProvider);
   final investments = ref.watch(investmentsProvider);
+  final assets = ref.watch(assetsProvider);
 
   if (user == null) return const AsyncValue.data([]);
 
   if (transactions.isLoading ||
       transfers.isLoading ||
       reserves.isLoading ||
+      assets.isLoading ||
       investments.isLoading) {
     return const AsyncValue.loading();
   }
@@ -104,6 +120,9 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
   if (investments.hasError) {
     return AsyncValue.error(investments.error!, investments.stackTrace!);
   }
+  if (assets.hasError) {
+    return AsyncValue.error(assets.error!, assets.stackTrace!);
+  }
 
   return AsyncValue.data(
     MovementListBuilder.build(
@@ -111,6 +130,7 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
       transfers: transfers.requireValue,
       reserves: reserves.requireValue,
       investments: investments.requireValue,
+      assets: assets.requireValue,
     ),
   );
 });
@@ -126,6 +146,7 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
   final reserves = ref.watch(reservesWithMovementsProvider);
   final transfers = ref.watch(transfersProvider);
   final settings = ref.watch(settingsProvider);
+  final portfolio = ref.watch(portfolioProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
   final service = ref.watch(dashboardServiceProvider);
 
@@ -133,6 +154,7 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
       investments.isLoading ||
       reserves.isLoading ||
       transfers.isLoading ||
+      portfolio.isLoading ||
       settings.isLoading) {
     return const AsyncValue.loading();
   }
@@ -141,6 +163,7 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
   if (investments.hasError) return AsyncValue.error(investments.error!, investments.stackTrace!);
   if (reserves.hasError) return AsyncValue.error(reserves.error!, reserves.stackTrace!);
   if (transfers.hasError) return AsyncValue.error(transfers.error!, transfers.stackTrace!);
+  if (portfolio.hasError) return AsyncValue.error(portfolio.error!, portfolio.stackTrace!);
   if (settings.hasError) return AsyncValue.error(settings.error!, settings.stackTrace!);
 
   return AsyncValue.data(service.compute(
@@ -149,6 +172,7 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
     reservesWithMovements: reserves.requireValue,
     transfers: transfers.requireValue,
     settings: settings.requireValue,
+    positions: portfolio.requireValue.positions,
     selectedMonth: selectedMonth,
   ));
 });
@@ -164,12 +188,14 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
   final reserves = ref.watch(reservesWithMovementsProvider);
   final transfers = ref.watch(transfersProvider);
   final settings = ref.watch(settingsProvider);
+  final portfolio = ref.watch(portfolioProvider);
   final service = ref.watch(dashboardServiceProvider);
 
   if (transactions.isLoading ||
       investments.isLoading ||
       reserves.isLoading ||
       transfers.isLoading ||
+      portfolio.isLoading ||
       settings.isLoading) {
     return const AsyncValue.loading();
   }
@@ -178,6 +204,7 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
   if (investments.hasError) return AsyncValue.error(investments.error!, investments.stackTrace!);
   if (reserves.hasError) return AsyncValue.error(reserves.error!, reserves.stackTrace!);
   if (transfers.hasError) return AsyncValue.error(transfers.error!, transfers.stackTrace!);
+  if (portfolio.hasError) return AsyncValue.error(portfolio.error!, portfolio.stackTrace!);
   if (settings.hasError) return AsyncValue.error(settings.error!, settings.stackTrace!);
 
   return AsyncValue.data(service.computeStatistics(
@@ -186,5 +213,6 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
     reservesWithMovements: reserves.requireValue,
     transfers: transfers.requireValue,
     settings: settings.requireValue,
+    positions: portfolio.requireValue.positions,
   ));
 });

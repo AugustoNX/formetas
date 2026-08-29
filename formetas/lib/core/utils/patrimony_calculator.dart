@@ -2,6 +2,7 @@ import '../../domain/entities/investment_entity.dart';
 import '../../domain/entities/reserve_movement_entity.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
+import 'asset_calculator.dart';
 import 'investment_calculator.dart';
 import 'monthly_balance_calculator.dart';
 import 'reserve_calculator.dart';
@@ -79,14 +80,25 @@ abstract final class PatrimonyCalculator {
   ///
   /// Ativos com rendimento configurado (% do CDI ou taxa fixa) são projetados
   /// pelo [InvestmentCalculator]; os demais usam o valor já registrado.
+  ///
+  /// [positions] são os ativos de mercado, que valem quantidade × cotação. Os
+  /// proventos já recebidos entram como rendimento, não como saldo: o dinheiro
+  /// deles já está no saldo da conta.
   static ({double total, double accumulatedYield, double principal}) investments({
     required List<InvestmentEntity> investments,
     required double cdiRate,
     DateTime? referenceDate,
+    List<AssetPosition> positions = const [],
   }) {
     var total = 0.0;
     var accumulated = 0.0;
     var principal = 0.0;
+
+    for (final position in positions) {
+      total += position.currentValue;
+      principal += position.investedCost;
+      accumulated += position.totalProfit;
+    }
 
     for (final investment in investments) {
       principal += investment.initialValue;
@@ -121,6 +133,7 @@ abstract final class PatrimonyCalculator {
     required List<InvestmentEntity> investments,
     required double cdiRate,
     DateTime? until,
+    List<AssetPosition> positions = const [],
   }) {
     final reserveTotals = reserves(
       reserves: reservesWithMovements,
@@ -131,6 +144,7 @@ abstract final class PatrimonyCalculator {
       investments: investments,
       cdiRate: cdiRate,
       referenceDate: until,
+      positions: positions,
     );
 
     return PatrimonySnapshot(

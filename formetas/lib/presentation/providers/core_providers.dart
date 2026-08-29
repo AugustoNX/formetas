@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/datasources/asset_remote_datasource.dart';
+import '../../data/datasources/brapi_market_datasource.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/category_remote_datasource.dart';
 import '../../data/datasources/goal_remote_datasource.dart';
@@ -10,6 +12,8 @@ import '../../data/datasources/transaction_remote_datasource.dart';
 import '../../data/datasources/transfer_remote_datasource.dart';
 import '../../data/repositories/transfer_repository_impl.dart';
 import '../../data/datasources/user_remote_datasource.dart';
+import '../../data/repositories/asset_repository_impl.dart';
+import '../../data/repositories/market_quote_repository_impl.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/category_repository_impl.dart';
 import '../../data/repositories/goal_repository_impl.dart';
@@ -19,6 +23,8 @@ import '../../data/repositories/reserve_repository_impl.dart';
 import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../domain/entities/settings_entity.dart';
+import '../../domain/repositories/asset_repository.dart';
+import '../../domain/repositories/market_quote_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/category_repository.dart';
 import '../../domain/repositories/goal_repository.dart';
@@ -27,6 +33,7 @@ import '../../domain/repositories/reserve_repository.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/transfer_repository.dart';
+import '../../domain/services/asset_trade_service.dart';
 import '../../domain/services/dashboard_service.dart';
 import '../../domain/services/transfer_service.dart';
 
@@ -55,6 +62,22 @@ final categoryRemoteDataSourceProvider =
 final investmentRemoteDataSourceProvider =
     Provider<InvestmentRemoteDataSource>((ref) {
   return InvestmentRemoteDataSource();
+});
+
+final brapiMarketDataSourceProvider = Provider<BrapiMarketDataSource>((ref) {
+  return BrapiMarketDataSource();
+});
+
+final marketQuoteRepositoryProvider = Provider<MarketQuoteRepository>((ref) {
+  return MarketQuoteRepositoryImpl(ref.watch(brapiMarketDataSourceProvider));
+});
+
+final assetRemoteDataSourceProvider = Provider<AssetRemoteDataSource>((ref) {
+  return AssetRemoteDataSource();
+});
+
+final assetRepositoryProvider = Provider<AssetRepository>((ref) {
+  return AssetRepositoryImpl(ref.watch(assetRemoteDataSourceProvider));
 });
 
 final reserveRemoteDataSourceProvider = Provider<ReserveRemoteDataSource>((ref) {
@@ -111,6 +134,13 @@ final transferServiceProvider = Provider<TransferService>((ref) {
     transferRepository: ref.watch(transferRepositoryProvider),
     reserveRepository: ref.watch(reserveRepositoryProvider),
     investmentRepository: ref.watch(investmentRepositoryProvider),
+  );
+});
+
+final assetTradeServiceProvider = Provider<AssetTradeService>((ref) {
+  return AssetTradeService(
+    assetRepository: ref.watch(assetRepositoryProvider),
+    transferRepository: ref.watch(transferRepositoryProvider),
   );
 });
 

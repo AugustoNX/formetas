@@ -1,4 +1,5 @@
 import '../../core/constants/anthill_catalog.dart';
+import '../../core/utils/asset_calculator.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/monthly_balance_calculator.dart';
 import '../../core/utils/patrimony_calculator.dart';
@@ -28,6 +29,7 @@ class AnthillService {
     required List<InvestmentEntity> investments,
     required List<GoalEntity> goals,
     required SettingsEntity settings,
+    List<AssetPosition> positions = const [],
     DateTime? referenceDate,
   }) {
     final now = referenceDate ?? DateTime.now();
@@ -37,6 +39,7 @@ class AnthillService {
       transfers: transfers,
       reserves: reserves,
       investments: investments,
+      positions: positions,
       goals: goals,
       settings: settings,
       now: now,
@@ -71,6 +74,7 @@ class AnthillService {
     required List<TransferEntity> transfers,
     required List<ReserveWithMovements> reserves,
     required List<InvestmentEntity> investments,
+    required List<AssetPosition> positions,
     required List<GoalEntity> goals,
     required SettingsEntity settings,
     required DateTime now,
@@ -80,6 +84,7 @@ class AnthillService {
       transfers: transfers,
       reservesWithMovements: reserves,
       investments: investments,
+      positions: positions,
       cdiRate: settings.cdiRate,
       until: now,
     );

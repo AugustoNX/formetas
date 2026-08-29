@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/failures.dart';
 import '../../providers/auth_controller.dart';
+import '../../widgets/app_logo.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -31,14 +32,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      await ref.read(authControllerProvider.notifier).signIn(
-            _emailController.text,
-            _passwordController.text,
-          );
+      await ref
+          .read(authControllerProvider.notifier)
+          .signIn(_emailController.text, _passwordController.text);
     } on AuthFailure catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     } catch (_) {
@@ -68,25 +71,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                Center(
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(Icons.eco_rounded, color: Colors.white, size: 40),
-                  ),
-                ),
+                const Center(child: AppLogo(size: 88, showShadow: true)),
                 const SizedBox(height: 24),
                 Text(
                   'Bem-vindo ao ${AppStrings.appName}',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -117,7 +110,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
@@ -149,15 +144,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Entrar', style: TextStyle(fontSize: 16)),
+                      : const Text(
+                          'Entrar',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
                 ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Não tem conta?', style: TextStyle(color: AppColors.gray)),
+                    Text(
+                      'Não tem conta?',
+                      style: TextStyle(color: AppColors.gray),
+                    ),
                     TextButton(
                       onPressed: () => context.push('/auth/register'),
                       child: const Text('Cadastre-se'),

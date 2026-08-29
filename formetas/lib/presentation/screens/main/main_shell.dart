@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/layout/adaptive_layout.dart';
 import '../../widgets/anthill/anthill_celebration_host.dart';
+import '../../widgets/app_logo.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
@@ -235,19 +236,7 @@ class _DesktopShell extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 20),
                           child: Row(
                             children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.eco_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
+                              const AppLogo(size: 36, radius: 10),
                               const SizedBox(width: 10),
                               Text(
                                 AppStrings.appName,
@@ -262,18 +251,7 @@ class _DesktopShell extends StatelessWidget {
                       else
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.eco_rounded,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: const AppLogo(size: 40, radius: 12),
                         ),
                       SizedBox(
                         width: extended ? 208 : 48,
@@ -373,8 +351,8 @@ class _AddMenuContent extends StatelessWidget {
           icon: Icons.trending_up_rounded,
           color: AppColors.investment,
           label: 'Investimento',
-          subtitle: 'Cadastrar uma carteira de investimentos',
-          onTap: () => onSelect('/investment/new'),
+          subtitle: 'Comprar ação, FII, ETF ou cripto',
+          onTap: () => onSelect('/lancamento/novo'),
         ),
         _AddOption(
           icon: Icons.flag_rounded,

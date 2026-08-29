@@ -42,6 +42,7 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
   final transfers = ref.watch(transfersProvider);
   final reserves = ref.watch(reservesWithMovementsProvider);
   final investments = ref.watch(investmentsProvider);
+  final portfolio = ref.watch(portfolioProvider);
   final goals = ref.watch(goalsProvider);
   final settings = ref.watch(settingsProvider);
 
@@ -51,6 +52,7 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
     transfers,
     reserves,
     investments,
+    portfolio,
     goals,
     settings,
   ];
@@ -71,6 +73,7 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
           transfers: transfers.requireValue,
           reserves: reserves.requireValue,
           investments: investments.requireValue,
+          positions: portfolio.requireValue.positions,
           goals: goals.requireValue,
           settings: settings.requireValue,
         ),

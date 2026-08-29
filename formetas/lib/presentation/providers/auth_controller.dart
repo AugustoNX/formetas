@@ -63,6 +63,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   Future<void> signOut() async {
     await _authRepo.signOut();
+    _ref.invalidate(authStateProvider);
     _ref.invalidate(transactionsProvider);
     _ref.invalidate(investmentsProvider);
     _ref.invalidate(reservesWithMovementsProvider);
@@ -75,6 +76,10 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
         DateTime(DateTime.now().year, DateTime.now().month);
     _ref.read(transactionFilterProvider.notifier).state =
         const TransactionFilter();
+  }
+
+  Future<void> updateName(String name) async {
+    await _authRepo.updateName(name);
   }
 }
 

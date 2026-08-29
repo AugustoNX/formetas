@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/entities/asset_trade_entity.dart';
 import '../../presentation/providers/app_mode_provider.dart';
 import '../../presentation/providers/auth_controller.dart';
-import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/providers/core_providers.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
@@ -16,6 +16,8 @@ import '../../presentation/screens/anthill/anthill_missions_screen.dart';
 import '../../presentation/screens/anthill/anthill_month_screen.dart';
 import '../../presentation/screens/anthill/anthill_shell.dart';
 import '../../presentation/screens/anthill/anthill_storage_screen.dart';
+import '../../presentation/screens/assets/asset_detail_screen.dart';
+import '../../presentation/screens/assets/asset_trade_form_screen.dart';
 import '../../presentation/screens/categories/categories_screen.dart';
 import '../../presentation/screens/dashboard/dashboard_screen.dart';
 import '../../presentation/screens/goals/goal_form_screen.dart';
@@ -43,18 +45,23 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: refresh,
     redirect: (context, state) {
-      final authState = ref.read(authStateProvider);
-      final isBusy = ref.read(authControllerProvider).isLoading;
-      final user = authState.valueOrNull;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       final isSplash = state.matchedLocation == '/splash';
-
       if (isSplash) return null;
-      if (isBusy) return null;
-      if (authState.isLoading) return null;
 
-      if (user == null && !isAuthRoute) return '/auth/login';
-      if (user != null && isAuthRoute) return ref.read(appModeProvider).homeRoute;
+      // Durante login/cadastro o Firebase já cria a sessão; esperamos o
+      // controller terminar para não pular a tela no meio do envio.
+      if (ref.read(authControllerProvider).isLoading) return null;
+
+      // currentUser do Firebase atualiza no mesmo instante do signOut.
+      // O StreamProvider atrasa um tick e, se o redirect usar esse atraso,
+      // a pessoa cai na Home como se ainda estivesse logada.
+      final signedIn = ref.read(authRepositoryProvider).currentUser != null;
+
+      if (!signedIn && !isAuthRoute) return '/auth/login';
+      if (signedIn && isAuthRoute) {
+        return ref.read(appModeProvider).homeRoute;
+      }
       return null;
     },
     routes: [
@@ -162,6 +169,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final id = state.pathParameters['id']!;
           return TransactionFormScreen(transactionId: id);
+        },
+      ),
+      GoRoute(
+        path: '/ativo/:id',
+        builder: (_, state) {
+          final id = state.pathParameters['id']!;
+          return AssetDetailScreen(assetId: id);
+        },
+      ),
+      GoRoute(
+        path: '/lancamento/novo',
+        builder: (_, state) {
+          final params = state.uri.queryParameters;
+          return AssetTradeFormScreen(
+            assetId: params['ativo'],
+            initialType: switch (params['tipo']) {
+              'venda' => AssetTradeType.sell,
+              'provento' => AssetTradeType.dividend,
+              _ => AssetTradeType.buy,
+            },
+          );
         },
       ),
       GoRoute(

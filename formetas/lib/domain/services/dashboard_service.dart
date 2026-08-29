@@ -1,3 +1,4 @@
+import '../../core/utils/asset_calculator.dart';
 import '../../core/utils/monthly_balance_calculator.dart';
 import '../../core/utils/patrimony_calculator.dart';
 import '../../domain/entities/dashboard_entity.dart';
@@ -16,6 +17,7 @@ class DashboardService {
     required List<TransferEntity> transfers,
     required SettingsEntity settings,
     required DateTime selectedMonth,
+    List<AssetPosition> positions = const [],
   }) {
     final monthStart = AppDateUtils.startOfMonth(selectedMonth);
     final monthEnd = AppDateUtils.endOfMonth(selectedMonth);
@@ -48,6 +50,7 @@ class DashboardService {
     final investmentTotals = PatrimonyCalculator.investments(
       investments: investments,
       cdiRate: settings.cdiRate,
+      positions: positions,
     );
     final totalInvestments = investmentTotals.total;
     final totalYield = investmentTotals.accumulatedYield;
@@ -108,6 +111,7 @@ class DashboardService {
     required List<ReserveWithMovements> reservesWithMovements,
     required List<TransferEntity> transfers,
     required SettingsEntity settings,
+    List<AssetPosition> positions = const [],
   }) {
     final expenses = transactions.where((t) => t.type == TransactionType.expense);
     final incomes = transactions.where((t) => t.type == TransactionType.income);
@@ -160,6 +164,7 @@ class DashboardService {
     final investmentTotals = PatrimonyCalculator.investments(
       investments: investments,
       cdiRate: settings.cdiRate,
+      positions: positions,
     );
     final totalInvested = investmentTotals.principal;
     final totalYield = investmentTotals.accumulatedYield;

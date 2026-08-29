@@ -5,142 +5,124 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/investment_entity.dart';
+import '../../../domain/entities/market_quote.dart';
+import '../../../domain/repositories/market_quote_repository.dart';
+import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/wallet/asset_section.dart';
 
-/// Carteira de investimentos. Vive dentro da Carteira, por isso não tem Scaffold.
-class InvestmentsView extends ConsumerWidget {
+/// Carteira de investimentos por ativo, agrupada em seções.
+/// Vive dentro da Carteira, por isso não tem Scaffold.
+class InvestmentsView extends ConsumerStatefulWidget {
   const InvestmentsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InvestmentsView> createState() => _InvestmentsViewState();
+}
+
+class _InvestmentsViewState extends ConsumerState<InvestmentsView> {
+  bool _refreshing = false;
+
+  Future<void> _refreshQuotes() async {
+    final portfolio = ref.read(portfolioProvider).valueOrNull;
+    if (portfolio == null || _refreshing) return;
+
+    setState(() => _refreshing = true);
+    var updated = 0;
+    try {
+      final quotes = ref.read(marketQuoteRepositoryProvider);
+      final trades = ref.read(assetTradeServiceProvider);
+      for (final position in portfolio.openPositions) {
+        if (!MarketQuoteMapper.isListed(position.asset.assetClass)) continue;
+        final quote = await quotes.lookup(position.asset.ticker);
+        final price = quote?.price;
+        if (price == null) continue;
+        await trades.saveAsset(
+          position.asset.copyWith(
+            name: position.asset.name.trim().isEmpty
+                ? quote!.name
+                : position.asset.name,
+            currentPrice: price,
+            priceUpdatedAt: DateTime.now(),
+          ),
+        );
+        updated += 1;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            updated == 0
+                ? 'Nenhuma cotação encontrada agora'
+                : '$updated cotações atualizadas',
+          ),
+        ),
+      );
+    } on MarketQuoteException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.expense),
+      );
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final portfolio = ref.watch(portfolioProvider);
     final investments = ref.watch(investmentsProvider);
 
-    return investments.when(
+    return portfolio.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro: $e')),
-      data: (list) {
-        final totalValue =
-            list.fold(0.0, (sum, inv) => sum + inv.currentValue);
-        final mainInvestment = list.isNotEmpty ? list.first : null;
+      data: (summary) {
+        final legacy = investments.valueOrNull ?? const <InvestmentEntity>[];
 
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.investment, AppColors.primary],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total investido',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    CurrencyFormatter.format(totalValue),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (mainInvestment != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      mainInvestment.name,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Transfira do seu saldo para investir. Não conta como despesa.',
-              style: TextStyle(color: AppColors.gray, fontSize: 13),
-            ),
+            PortfolioHeaderCard(portfolio: summary),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      final params = mainInvestment != null
-                          ? '?from=balance&to=investment&toId=${mainInvestment.id}'
-                          : '?from=balance&to=investment';
-                      context.push('/transfer$params');
-                    },
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Investir'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.investment,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: totalValue <= 0 || mainInvestment == null
-                        ? null
-                        : () => context.push(
-                              '/transfer?from=investment'
-                              '&fromId=${mainInvestment.id}&to=balance',
-                            ),
-                    icon: const Icon(Icons.remove_rounded),
-                    label: const Text('Resgatar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.investment,
-                      side: const BorderSide(color: AppColors.investment),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ],
+            FilledButton.icon(
+              onPressed: () => context.push('/lancamento/novo'),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Novo lançamento'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.investment,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
-            if (list.isEmpty) ...[
-              const SizedBox(height: 32),
-              Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.trending_up_rounded,
-                      size: 64,
-                      color: AppColors.gray.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nenhum valor investido ainda',
-                      style: TextStyle(color: AppColors.gray),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Use "Investir" para transferir do saldo',
-                      style: TextStyle(color: AppColors.gray, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+            if (summary.openPositions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _refreshing ? null : _refreshQuotes,
+                icon: _refreshing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                label: Text(
+                  _refreshing ? 'Atualizando cotações...' : 'Atualizar cotações',
                 ),
               ),
-            ] else ...[
-              const SizedBox(height: 28),
-              Text(
-                'Seus investimentos',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ...list.map((inv) => _InvestmentCard(investment: inv)),
+            ],
+            const SizedBox(height: 24),
+            if (summary.isEmpty)
+              const _EmptyPortfolio()
+            else
+              for (final group in summary.groups)
+                AssetClassSection(
+                  summary: group,
+                  portfolio: summary,
+                  onOpenAsset: (position) =>
+                      context.push('/ativo/${position.asset.id}'),
+                ),
+            if (legacy.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _LegacyInvestments(investments: legacy),
             ],
           ],
         );
@@ -149,62 +131,124 @@ class InvestmentsView extends ConsumerWidget {
   }
 }
 
-class _InvestmentCard extends StatelessWidget {
-  const _InvestmentCard({required this.investment});
-
-  final InvestmentEntity investment;
+class _EmptyPortfolio extends StatelessWidget {
+  const _EmptyPortfolio();
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => context.push('/investment/edit/${investment.id}'),
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.investment.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.trending_up_rounded,
-                  color: AppColors.investment,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      investment.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      'Carteira de investimentos',
-                      style: TextStyle(color: AppColors.gray, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                CurrencyFormatter.format(investment.currentValue),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.investment,
-                ),
-              ),
-            ],
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Icon(
+          Icons.pie_chart_outline_rounded,
+          size: 64,
+          color: AppColors.gray.withValues(alpha: 0.5),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Sua carteira está vazia',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Registre a primeira compra de uma ação, FII, ETF ou cripto. '
+            'O valor sai do seu saldo e passa a valer pela cotação.',
+            style: TextStyle(color: AppColors.gray, fontSize: 13),
+            textAlign: TextAlign.center,
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Valores lançados no formato antigo, antes da carteira por ativo.
+/// Ficam visíveis para que ninguém perca dinheiro de vista.
+class _LegacyInvestments extends StatelessWidget {
+  const _LegacyInvestments({required this.investments});
+
+  final List<InvestmentEntity> investments;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = investments.fold(0.0, (sum, i) => sum + i.currentValue);
+    if (total <= 0) return const SizedBox.shrink();
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Outros investimentos',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Lançados antes da carteira por ativo',
+                        style: TextStyle(color: AppColors.gray, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.format(total),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          for (final investment in investments)
+            if (investment.currentValue > 0)
+              ListTile(
+                title: Text(investment.name),
+                trailing: Text(
+                  CurrencyFormatter.format(investment.currentValue),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onTap: () => context.push('/investment/edit/${investment.id}'),
+              ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '/transfer?from=balance&to=investment'
+                      '&toId=${investments.first.id}',
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Aportar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '/transfer?from=investment'
+                      '&fromId=${investments.first.id}&to=balance',
+                    ),
+                    icon: const Icon(Icons.remove_rounded, size: 18),
+                    label: const Text('Resgatar'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

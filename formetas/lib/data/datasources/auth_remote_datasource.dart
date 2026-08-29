@@ -19,7 +19,7 @@ class AuthRemoteDataSource {
   final FirebaseDatabase _database;
 
   Stream<UserEntity?> get authStateChanges {
-    return _auth.authStateChanges().asyncMap(_mapUserWhenReady);
+    return _auth.userChanges().asyncMap(_mapUserWhenReady);
   }
 
   UserEntity? get currentUser {
@@ -84,6 +84,33 @@ class AuthRemoteDataSource {
   }
 
   Future<void> signOut() => _auth.signOut();
+
+  Future<UserEntity> updateName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Usuário não autenticado.');
+    }
+
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw const AuthFailure('Informe seu nome.');
+    }
+
+    try {
+      await user.updateDisplayName(trimmed);
+      await _database.ref('users/${user.uid}/profile').update({'nome': trimmed});
+      await user.reload();
+      return _mapUser(_auth.currentUser ?? user);
+    } on FirebaseAuthException catch (e) {
+      throw AuthErrorMapper.map(e);
+    } on FirebaseException catch (e) {
+      throw AuthFailure(
+        e.code == 'permission-denied'
+            ? 'Não foi possível salvar o nome agora. Tente de novo.'
+            : 'Não foi possível atualizar o nome. Tente novamente.',
+      );
+    }
+  }
 
   Future<void> sendPasswordResetEmail(String email) async {
     try {

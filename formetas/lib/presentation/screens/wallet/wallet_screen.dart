@@ -50,7 +50,7 @@ class _WalletScreenState extends State<WalletScreen>
     context.push(
       _tabIndex == WalletTab.reserves.index
           ? '/reserve/new'
-          : '/investment/new',
+          : '/lancamento/novo',
     );
   }
 
@@ -64,7 +64,7 @@ class _WalletScreenState extends State<WalletScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
-            tooltip: isReserves ? 'Nova caixinha' : 'Novo investimento',
+            tooltip: isReserves ? 'Nova caixinha' : 'Novo lançamento',
             onPressed: _createCurrent,
           ),
         ],

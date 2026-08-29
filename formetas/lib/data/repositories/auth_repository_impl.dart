@@ -40,4 +40,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<UserEntity> reloadUser() => _dataSource.reloadUser();
+
+  @override
+  Future<UserEntity> updateName(String name) => _dataSource.updateName(name);
 }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/failures.dart';
 import '../../providers/auth_controller.dart';
+import '../../widgets/app_logo.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -34,7 +35,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      await ref.read(authControllerProvider.notifier).signUp(
+      await ref
+          .read(authControllerProvider.notifier)
+          .signUp(
             _nameController.text,
             _emailController.text,
             _passwordController.text,
@@ -50,9 +53,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } on AuthFailure catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
+    }
+  }
+
+  /// Quem chegou aqui pelo login volta para a tela que já está na pilha; quem
+  /// abriu o cadastro direto pela URL precisa de uma rota nova.
+  void _goToLogin() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/auth/login');
     }
   }
 
@@ -65,7 +81,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: _goToLogin,
         ),
       ),
       body: SafeArea(
@@ -76,12 +92,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Center(child: AppLogo(size: 72)),
+                const SizedBox(height: 24),
                 Text(
                   'Criar conta',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -121,7 +139,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
@@ -163,9 +183,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Cadastrar', style: TextStyle(fontSize: 16)),
+                      : const Text(
+                          'Cadastrar',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Já tem uma conta?',
+                      style: TextStyle(color: AppColors.gray),
+                    ),
+                    TextButton(
+                      onPressed: isLoading ? null : _goToLogin,
+                      child: const Text('Entrar'),
+                    ),
+                  ],
                 ),
               ],
             ),
