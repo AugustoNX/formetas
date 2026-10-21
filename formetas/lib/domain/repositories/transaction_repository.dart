@@ -35,6 +35,7 @@ abstract class TransactionRepository {
   Future<List<TransactionEntity>> getTransactions(String userId);
   Future<TransactionEntity?> getTransaction(String userId, String id);
   Future<void> createTransaction(TransactionEntity transaction);
+  Future<void> createTransactions(List<TransactionEntity> transactions);
   Future<void> updateTransaction(TransactionEntity transaction);
   Future<void> deleteTransaction(String userId, String id);
 }

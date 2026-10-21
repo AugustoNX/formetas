@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../domain/entities/movement_entry.dart';
+import '../../../domain/entities/transaction_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
@@ -81,6 +82,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Movimentações'),
+        actions: [
+          IconButton(
+            tooltip: 'Importar CSV',
+            onPressed: () => context.push('/transactions/import'),
+            icon: const Icon(Icons.upload_file_rounded),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -177,11 +185,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
                       entry: item,
                       onTap: () {
                         final tx = item.transaction;
-                        if (tx != null) {
-                          context.push('/transaction/edit/${tx.id}');
+                        if (tx == null) {
+                          _showTransferDetails(item);
                           return;
                         }
-                        _showTransferDetails(item);
+                        if (tx.type == TransactionType.opening) return;
+                        context.push('/transaction/edit/${tx.id}');
                       },
                       onDelete: item.transaction != null
                           ? () => _deleteTransaction(item.id)

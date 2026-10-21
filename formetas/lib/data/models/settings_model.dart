@@ -7,6 +7,7 @@ class SettingsModel extends SettingsEntity {
     super.notificationsEnabled,
     super.firstDayOfMonth,
     super.cdiRate,
+    super.onboardingCompleted,
   });
 
   factory SettingsModel.fromMap(Map<String, dynamic> map) {
@@ -21,6 +22,9 @@ class SettingsModel extends SettingsEntity {
           map['firstDayOfMonth'] as int? ??
           1,
       cdiRate: (map['cdiRate'] ?? map['taxaCDI'] ?? 13.25).toDouble(),
+      onboardingCompleted: map['onboardingConcluido'] as bool? ??
+          map['onboardingCompleted'] as bool? ??
+          false,
     );
   }
 
@@ -31,6 +35,7 @@ class SettingsModel extends SettingsEntity {
       notificationsEnabled: entity.notificationsEnabled,
       firstDayOfMonth: entity.firstDayOfMonth,
       cdiRate: entity.cdiRate,
+      onboardingCompleted: entity.onboardingCompleted,
     );
   }
 
@@ -41,6 +46,7 @@ class SettingsModel extends SettingsEntity {
       'notificações': notificationsEnabled,
       'primeiroDiaDoMes': firstDayOfMonth,
       'cdiRate': cdiRate,
+      'onboardingConcluido': onboardingCompleted,
     };
   }
 

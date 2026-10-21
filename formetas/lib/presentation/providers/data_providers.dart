@@ -100,11 +100,10 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
 
   if (user == null) return const AsyncValue.data([]);
 
-  if (transactions.isLoading ||
-      transfers.isLoading ||
-      reserves.isLoading ||
-      assets.isLoading ||
-      investments.isLoading) {
+  if (_isPending(transactions) ||
+      _isPending(transfers) ||
+      _isPending(reserves) ||
+      _isPending(investments)) {
     return const AsyncValue.loading();
   }
 
@@ -120,9 +119,6 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
   if (investments.hasError) {
     return AsyncValue.error(investments.error!, investments.stackTrace!);
   }
-  if (assets.hasError) {
-    return AsyncValue.error(assets.error!, assets.stackTrace!);
-  }
 
   return AsyncValue.data(
     MovementListBuilder.build(
@@ -130,7 +126,7 @@ final movementsProvider = Provider<AsyncValue<List<MovementEntry>>>((ref) {
       transfers: transfers.requireValue,
       reserves: reserves.requireValue,
       investments: investments.requireValue,
-      assets: assets.requireValue,
+      assets: assets.valueOrNull ?? const [],
     ),
   );
 });
@@ -150,12 +146,11 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
   final selectedMonth = ref.watch(selectedMonthProvider);
   final service = ref.watch(dashboardServiceProvider);
 
-  if (transactions.isLoading ||
-      investments.isLoading ||
-      reserves.isLoading ||
-      transfers.isLoading ||
-      portfolio.isLoading ||
-      settings.isLoading) {
+  if (_isPending(transactions) ||
+      _isPending(investments) ||
+      _isPending(reserves) ||
+      _isPending(transfers) ||
+      _isPending(settings)) {
     return const AsyncValue.loading();
   }
 
@@ -163,7 +158,6 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
   if (investments.hasError) return AsyncValue.error(investments.error!, investments.stackTrace!);
   if (reserves.hasError) return AsyncValue.error(reserves.error!, reserves.stackTrace!);
   if (transfers.hasError) return AsyncValue.error(transfers.error!, transfers.stackTrace!);
-  if (portfolio.hasError) return AsyncValue.error(portfolio.error!, portfolio.stackTrace!);
   if (settings.hasError) return AsyncValue.error(settings.error!, settings.stackTrace!);
 
   return AsyncValue.data(service.compute(
@@ -172,7 +166,7 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
     reservesWithMovements: reserves.requireValue,
     transfers: transfers.requireValue,
     settings: settings.requireValue,
-    positions: portfolio.requireValue.positions,
+    positions: portfolio.valueOrNull?.positions ?? const [],
     selectedMonth: selectedMonth,
   ));
 });
@@ -191,12 +185,11 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
   final portfolio = ref.watch(portfolioProvider);
   final service = ref.watch(dashboardServiceProvider);
 
-  if (transactions.isLoading ||
-      investments.isLoading ||
-      reserves.isLoading ||
-      transfers.isLoading ||
-      portfolio.isLoading ||
-      settings.isLoading) {
+  if (_isPending(transactions) ||
+      _isPending(investments) ||
+      _isPending(reserves) ||
+      _isPending(transfers) ||
+      _isPending(settings)) {
     return const AsyncValue.loading();
   }
 
@@ -204,7 +197,6 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
   if (investments.hasError) return AsyncValue.error(investments.error!, investments.stackTrace!);
   if (reserves.hasError) return AsyncValue.error(reserves.error!, reserves.stackTrace!);
   if (transfers.hasError) return AsyncValue.error(transfers.error!, transfers.stackTrace!);
-  if (portfolio.hasError) return AsyncValue.error(portfolio.error!, portfolio.stackTrace!);
   if (settings.hasError) return AsyncValue.error(settings.error!, settings.stackTrace!);
 
   return AsyncValue.data(service.computeStatistics(
@@ -213,6 +205,9 @@ final statisticsProvider = Provider<AsyncValue<StatisticsSummary>>((ref) {
     reservesWithMovements: reserves.requireValue,
     transfers: transfers.requireValue,
     settings: settings.requireValue,
-    positions: portfolio.requireValue.positions,
+    positions: portfolio.valueOrNull?.positions ?? const [],
   ));
 });
+
+bool _isPending(AsyncValue<dynamic> value) =>
+    value.isLoading && !value.hasValue;

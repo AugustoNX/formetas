@@ -7,6 +7,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../providers/app_mode_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/core_providers.dart';
+import '../../providers/onboarding_provider.dart';
 import '../../widgets/app_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -40,12 +42,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) {
-      context.go('/auth/login');
-      return;
-    }
-    context.go(ref.read(appModeProvider).homeRoute);
+    final user = ref.read(authRepositoryProvider).currentUser;
+    context.go(
+      resolveLandingRoute(
+        userId: user?.id,
+        onboardingComplete: user == null
+            ? true
+            : ref.read(settingsLocalDataSourceProvider).isOnboardingComplete(user.id),
+        appMode: ref.read(appModeProvider),
+      ),
+    );
   }
 
   @override

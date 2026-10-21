@@ -8,6 +8,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/layout/adaptive_layout.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../domain/entities/transaction_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/anthill/anthill_entry_banner.dart';
@@ -31,6 +32,8 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: stats.when(
+          skipLoadingOnReload: true,
+          skipLoadingOnRefresh: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _DataLoadError(
             error: e,
@@ -40,6 +43,7 @@ class DashboardScreen extends ConsumerWidget {
               ref.invalidate(reservesWithMovementsProvider);
               ref.invalidate(transfersProvider);
               ref.invalidate(settingsProvider);
+              ref.invalidate(assetsProvider);
             },
           ),
           data: (data) => RefreshIndicator(
@@ -49,6 +53,7 @@ class DashboardScreen extends ConsumerWidget {
               ref.invalidate(reservesWithMovementsProvider);
               ref.invalidate(transfersProvider);
               ref.invalidate(settingsProvider);
+              ref.invalidate(assetsProvider);
             },
             child: CustomScrollView(
               slivers: [
@@ -303,9 +308,11 @@ class DashboardScreen extends ConsumerWidget {
                             entry: item,
                             onTap: () {
                               final tx = item.transaction;
-                              if (tx != null) {
-                                context.push('/transaction/edit/${tx.id}');
+                              if (tx == null ||
+                                  tx.type == TransactionType.opening) {
+                                return;
                               }
+                              context.push('/transaction/edit/${tx.id}');
                             },
                           ),
                         );

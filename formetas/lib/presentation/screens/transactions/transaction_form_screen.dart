@@ -76,6 +76,15 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         context.go('/carteira?aba=investimentos');
         return;
       }
+      if (tx.type == TransactionType.opening) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O saldo inicial vem da configuração da conta.'),
+          ),
+        );
+        context.pop();
+        return;
+      }
       setState(() {
         _existing = tx;
         _type = tx.type;

@@ -92,21 +92,24 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
     });
   }
 
-  void _applyQuote(MarketQuote quote, List<AssetWithTrades> assets) {
-    final existing = assets
-        .where((item) => item.asset.ticker == quote.ticker)
-        .firstOrNull;
-
+  void _applyQuote(MarketQuote quote) {
     setState(() {
       _quote = quote;
-      _assetClass = quote.assetClass;
       _tickerController.text = quote.ticker;
       _nameController.text = quote.name;
-      _selectedId = existing?.asset.id;
+      _selectedId = null;
       _manualTicker = false;
-      if (_priceController.text.trim().isEmpty && quote.price != null) {
+      if (quote.price != null) {
         _priceController.text = CurrencyFormatter.formatForInput(quote.price!);
       }
+    });
+  }
+
+  void _clearQuote() {
+    setState(() {
+      _quote = null;
+      _tickerController.clear();
+      _nameController.clear();
     });
   }
 
@@ -123,8 +126,11 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
 
-    final existing =
-        assets.where((item) => item.asset.id == _selectedId).firstOrNull;
+    final ticker = (_quote?.ticker ?? _tickerController.text).trim().toUpperCase();
+    final existing = assets.where((item) => item.asset.id == _selectedId).firstOrNull ??
+        (ticker.isEmpty
+            ? null
+            : assets.where((item) => item.asset.ticker == ticker).firstOrNull);
 
     if (existing == null && _type != AssetTradeType.buy) {
       _showError('Escolha um ativo da carteira');
@@ -136,11 +142,7 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
       return;
     }
 
-    final ticker = (existing?.asset.ticker ??
-            _quote?.ticker ??
-            _tickerController.text)
-        .trim()
-        .toUpperCase();
+    final resolvedTicker = (existing?.asset.ticker ?? ticker).trim().toUpperCase();
     final name = existing?.asset.name ??
         (_quote?.name ?? _nameController.text).trim();
 
@@ -148,7 +150,7 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
         AssetEntity(
           id: const Uuid().v4(),
           userId: user.id,
-          ticker: ticker,
+          ticker: resolvedTicker,
           name: name,
           assetClass: _quote?.assetClass ?? _assetClass,
           currentPrice: _quote?.price,
@@ -223,6 +225,8 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Novo lançamento')),
       body: assets.when(
+        skipLoadingOnReload: true,
+        skipLoadingOnRefresh: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),
         data: (list) => _buildForm(list),
@@ -274,6 +278,7 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
           const SizedBox(height: 20),
           if (_type == AssetTradeType.buy) ...[
             DropdownButtonFormField<AssetClass>(
+              key: ValueKey(_assetClass),
               initialValue: _assetClass,
               decoration: const InputDecoration(labelText: 'Tipo de ativo'),
               items: [
@@ -283,20 +288,24 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
                     child: Text(AssetClassLabels.plural(value)),
                   ),
               ],
-              onChanged: (value) => setState(() {
-                _assetClass = value!;
-                _quote = null;
-                _selectedId = null;
-                _tickerController.clear();
-                _nameController.clear();
-              }),
+              onChanged: (value) {
+                if (value == null || value == _assetClass) return;
+                setState(() {
+                  _assetClass = value;
+                  _quote = null;
+                  _selectedId = null;
+                  _tickerController.clear();
+                  _nameController.clear();
+                });
+              },
             ),
             const SizedBox(height: 16),
             if (_catalogSearch)
               AssetSearchField(
                 assetClass: _assetClass,
                 selected: _quote,
-                onSelected: (quote) => _applyQuote(quote, assets),
+                onSelected: _applyQuote,
+                onCleared: _clearQuote,
               )
             else if (_buyingNew)
               ..._manualFields()
@@ -304,10 +313,13 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
               _OwnedAssetDropdown(
                 assets: assets,
                 selectedId: _selectedId,
-                onChanged: (value) => setState(() {
+                onChanged: (value) {
+                if (value == null || value == _selectedId) return;
+                setState(() {
                   _selectedId = value;
                   _quote = null;
-                }),
+                });
+              },
               ),
             if (_catalogSearch)
               Align(
@@ -332,7 +344,10 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
             _OwnedAssetDropdown(
               assets: assets,
               selectedId: _selectedId,
-              onChanged: (value) => setState(() => _selectedId = value),
+              onChanged: (value) {
+                if (value == null || value == _selectedId) return;
+                setState(() => _selectedId = value);
+              },
             ),
           if (_quote != null) ...[
             const SizedBox(height: 8),

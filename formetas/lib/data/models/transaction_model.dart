@@ -20,6 +20,7 @@ class TransactionModel extends TransactionEntity {
     super.installmentCount,
     super.installmentNumber,
     super.parentId,
+    super.sourceId,
   });
 
   factory TransactionModel.fromMap(Map<String, dynamic> map, String id) {
@@ -50,6 +51,7 @@ class TransactionModel extends TransactionEntity {
           map['installmentNumber'] as int? ??
           1,
       parentId: map['parentId'] as String?,
+      sourceId: map['origemId'] as String? ?? map['sourceId'] as String?,
       createdAt: _parseDate(map['criadoEm'] ?? map['createdAt']),
     );
   }
@@ -73,6 +75,7 @@ class TransactionModel extends TransactionEntity {
       installmentCount: entity.installmentCount,
       installmentNumber: entity.installmentNumber,
       parentId: entity.parentId,
+      sourceId: entity.sourceId,
       createdAt: entity.createdAt,
     );
   }
@@ -95,6 +98,7 @@ class TransactionModel extends TransactionEntity {
       'quantidadeParcelas': installmentCount,
       'numeroParcela': installmentNumber,
       'parentId': parentId,
+      'origemId': sourceId,
       'criadoEm': createdAt.toIso8601String(),
     };
   }

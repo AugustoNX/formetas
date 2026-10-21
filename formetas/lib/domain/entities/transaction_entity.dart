@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum TransactionType { income, expense, investment }
+enum TransactionType { income, expense, investment, opening }
 
 enum RecurrenceType { none, daily, weekly, monthly, yearly }
 
@@ -26,6 +26,7 @@ class TransactionEntity extends Equatable {
     this.installmentCount = 1,
     this.installmentNumber = 1,
     this.parentId,
+    this.sourceId,
   });
 
   final String id;
@@ -45,6 +46,7 @@ class TransactionEntity extends Equatable {
   final int installmentCount;
   final int installmentNumber;
   final String? parentId;
+  final String? sourceId;
   final DateTime createdAt;
 
   TransactionEntity copyWith({
@@ -65,6 +67,7 @@ class TransactionEntity extends Equatable {
     int? installmentCount,
     int? installmentNumber,
     String? parentId,
+    String? sourceId,
     DateTime? createdAt,
   }) {
     return TransactionEntity(
@@ -85,6 +88,7 @@ class TransactionEntity extends Equatable {
       installmentCount: installmentCount ?? this.installmentCount,
       installmentNumber: installmentNumber ?? this.installmentNumber,
       parentId: parentId ?? this.parentId,
+      sourceId: sourceId ?? this.sourceId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

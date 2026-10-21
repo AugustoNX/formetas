@@ -52,7 +52,6 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
     transfers,
     reserves,
     investments,
-    portfolio,
     goals,
     settings,
   ];
@@ -62,7 +61,7 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
       return AsyncValue.error(source.error!, source.stackTrace!);
     }
   }
-  if (sources.any((source) => source.isLoading)) {
+  if (sources.any((source) => source.isLoading && !source.hasValue)) {
     return const AsyncValue.loading();
   }
 
@@ -73,7 +72,7 @@ final anthillSnapshotProvider = Provider<AsyncValue<AnthillSnapshot>>((ref) {
           transfers: transfers.requireValue,
           reserves: reserves.requireValue,
           investments: investments.requireValue,
-          positions: portfolio.requireValue.positions,
+          positions: portfolio.valueOrNull?.positions ?? const [],
           goals: goals.requireValue,
           settings: settings.requireValue,
         ),

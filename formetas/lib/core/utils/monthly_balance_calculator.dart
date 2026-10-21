@@ -55,6 +55,10 @@ abstract final class MonthlyBalanceCalculator {
           .where((t) => t.type == TransactionType.investment)
           .fold(0.0, (s, t) => s + t.value);
 
+      final openingSeed = monthTx
+          .where((t) => t.type == TransactionType.opening)
+          .fold(0.0, (s, t) => s + t.value);
+
       final monthTransfers = transfers.where((t) {
         return !t.date.isBefore(monthStart) && !t.date.isAfter(monthEnd);
       });
@@ -68,8 +72,13 @@ abstract final class MonthlyBalanceCalculator {
           .fold(0.0, (s, t) => s + t.amount);
 
       final opening = runningBalance;
-      final closing =
-          opening + income - expense - investment + transferIn - transferOut;
+      final closing = opening +
+          openingSeed +
+          income -
+          expense -
+          investment +
+          transferIn -
+          transferOut;
       final savings = income - expense;
 
       summaries.add(MonthlySummary(

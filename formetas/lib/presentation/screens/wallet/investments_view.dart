@@ -74,6 +74,8 @@ class _InvestmentsViewState extends ConsumerState<InvestmentsView> {
     final investments = ref.watch(investmentsProvider);
 
     return portfolio.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro: $e')),
       data: (summary) {

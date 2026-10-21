@@ -56,6 +56,30 @@ class TransactionRemoteDataSource {
     await _ref(transaction.userId).child(transaction.id).set(data);
   }
 
+  Future<void> createTransactions(List<TransactionEntity> transactions) async {
+    if (transactions.isEmpty) return;
+    final ref = _ref(transactions.first.userId);
+    const chunkSize = 200;
+    for (var start = 0; start < transactions.length; start += chunkSize) {
+      final end = start + chunkSize > transactions.length
+          ? transactions.length
+          : start + chunkSize;
+      final chunk = transactions.sublist(start, end);
+      await ref.update({
+        for (final transaction in chunk)
+          transaction.id: _storedMap(transaction),
+      });
+    }
+  }
+
+  Map<String, Object> _storedMap(TransactionEntity transaction) {
+    final data = TransactionModel.fromEntity(transaction).toMap();
+    return {
+      for (final entry in data.entries)
+        if (entry.value != null) entry.key: entry.value as Object,
+    };
+  }
+
   Future<void> updateTransaction(TransactionEntity transaction) async {
     final data = TransactionModel.fromEntity(transaction).toMap();
     await _ref(transaction.userId).child(transaction.id).update(data);

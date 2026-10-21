@@ -17,12 +17,20 @@ class AssetRemoteDataSource {
   DatabaseReference _tradesRef(String userId, String assetId) =>
       _ref(userId).child(assetId).child('lancamentos');
 
-  Stream<List<AssetWithTrades>> watchAssets(String userId) {
-    return _ref(userId).onValue.map((event) {
-      final list = RtdbHelper.parseChildren(event.snapshot.value, _parse);
-      list.sort((a, b) => a.asset.ticker.compareTo(b.asset.ticker));
-      return list;
-    });
+  Stream<List<AssetWithTrades>> watchAssets(String userId) async* {
+    try {
+      await for (final event in _ref(userId).onValue) {
+        try {
+          final list = RtdbHelper.parseChildren(event.snapshot.value, _parse);
+          list.sort((a, b) => a.asset.ticker.compareTo(b.asset.ticker));
+          yield list;
+        } catch (_) {
+          yield const <AssetWithTrades>[];
+        }
+      }
+    } catch (_) {
+      yield const <AssetWithTrades>[];
+    }
   }
 
   Future<List<AssetWithTrades>> getAssets(String userId) async {

@@ -26,6 +26,8 @@ class TransactionTile extends StatelessWidget {
         return AppColors.expense;
       case TransactionType.investment:
         return AppColors.investment;
+      case TransactionType.opening:
+        return AppColors.gold;
     }
   }
 
@@ -37,12 +39,17 @@ class TransactionTile extends StatelessWidget {
         return Icons.arrow_upward_rounded;
       case TransactionType.investment:
         return Icons.trending_up_rounded;
+      case TransactionType.opening:
+        return Icons.account_balance_wallet_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final prefix = transaction.type == TransactionType.income ? '+' : '-';
+    final prefix = transaction.type == TransactionType.expense ||
+            transaction.type == TransactionType.investment
+        ? '-'
+        : '+';
 
     return Dismissible(
       key: Key(transaction.id),
@@ -172,5 +179,7 @@ String transactionSuccessMessage(TransactionType type) {
       return AppStrings.expenseSuccess;
     case TransactionType.investment:
       return AppStrings.investSuccess;
+    case TransactionType.opening:
+      return AppStrings.saveSuccess;
   }
 }

@@ -13,6 +13,7 @@ class SettingsEntity extends Equatable {
     this.notificationsEnabled = true,
     this.firstDayOfMonth = 1,
     this.cdiRate = 13.25,
+    this.onboardingCompleted = false,
   });
 
   final String currency;
@@ -20,6 +21,7 @@ class SettingsEntity extends Equatable {
   final bool notificationsEnabled;
   final int firstDayOfMonth;
   final double cdiRate;
+  final bool onboardingCompleted;
 
   SettingsEntity copyWith({
     String? currency,
@@ -27,6 +29,7 @@ class SettingsEntity extends Equatable {
     bool? notificationsEnabled,
     int? firstDayOfMonth,
     double? cdiRate,
+    bool? onboardingCompleted,
   }) {
     return SettingsEntity(
       currency: currency ?? this.currency,
@@ -34,9 +37,11 @@ class SettingsEntity extends Equatable {
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       firstDayOfMonth: firstDayOfMonth ?? this.firstDayOfMonth,
       cdiRate: cdiRate ?? this.cdiRate,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     );
   }
 
   @override
-  List<Object?> get props => [currency, theme, cdiRate];
+  List<Object?> get props =>
+      [currency, theme, cdiRate, onboardingCompleted];
 }

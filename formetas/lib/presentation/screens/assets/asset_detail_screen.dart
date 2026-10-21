@@ -24,6 +24,8 @@ class AssetDetailScreen extends ConsumerWidget {
     final assets = ref.watch(assetsProvider);
 
     return assets.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),

@@ -35,6 +35,7 @@ abstract final class MovementListBuilder {
             TransactionType.income => MovementKind.income,
             TransactionType.expense => MovementKind.expense,
             TransactionType.investment => MovementKind.investment,
+            TransactionType.opening => MovementKind.opening,
           },
           transaction: tx,
         ),

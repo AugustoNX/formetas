@@ -1,7 +1,7 @@
 import '../entities/transaction_entity.dart';
 import '../entities/transfer_entity.dart';
 
-enum MovementKind { income, expense, investment, transfer }
+enum MovementKind { income, expense, investment, transfer, opening }
 
 class MovementEntry {
   const MovementEntry({

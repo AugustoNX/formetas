@@ -8,7 +8,7 @@ class SettingsLocalDataSource {
   final SharedPreferences _prefs;
 
   static const _themeKey = 'theme_mode';
-  static const _onboardingKey = 'onboarding_complete';
+  static const _onboardingKeyPrefix = 'onboarding_complete_';
   static const _appModeKey = 'app_mode';
 
   AppThemeMode getThemeMode() {
@@ -36,9 +36,12 @@ class SettingsLocalDataSource {
     await _prefs.setString(_appModeKey, mode.name);
   }
 
-  bool isOnboardingComplete() => _prefs.getBool(_onboardingKey) ?? false;
+  String _onboardingKey(String userId) => '$_onboardingKeyPrefix$userId';
 
-  Future<void> setOnboardingComplete() async {
-    await _prefs.setBool(_onboardingKey, true);
+  bool isOnboardingComplete(String userId) =>
+      _prefs.getBool(_onboardingKey(userId)) ?? false;
+
+  Future<void> setOnboardingComplete(String userId) async {
+    await _prefs.setBool(_onboardingKey(userId), true);
   }
 }

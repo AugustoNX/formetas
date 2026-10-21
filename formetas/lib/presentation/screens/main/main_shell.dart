@@ -334,6 +334,13 @@ class _AddMenuContent extends StatelessWidget {
           onTap: () => onSelect('/transaction/new?type=expense'),
         ),
         _AddOption(
+          icon: Icons.upload_file_rounded,
+          color: AppColors.accent,
+          label: 'Importar CSV',
+          subtitle: 'Extrato do banco, para conferir antes de salvar',
+          onTap: () => onSelect('/transactions/import'),
+        ),
+        _AddOption(
           icon: Icons.swap_horiz_rounded,
           color: AppColors.primary,
           label: 'Transferir',

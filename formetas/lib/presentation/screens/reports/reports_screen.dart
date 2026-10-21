@@ -18,10 +18,14 @@ class ReportsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Relatórios')),
       body: stats.when(
+        skipLoadingOnReload: true,
+        skipLoadingOnRefresh: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),
         data: (dashboard) {
           return statistics.when(
+            skipLoadingOnReload: true,
+            skipLoadingOnRefresh: true,
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Erro: $e')),
             data: (summary) => ListView(

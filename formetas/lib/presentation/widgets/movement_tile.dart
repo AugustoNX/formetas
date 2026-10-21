@@ -22,6 +22,7 @@ class MovementTile extends StatelessWidget {
         MovementKind.expense => AppColors.expense,
         MovementKind.investment => AppColors.investment,
         MovementKind.transfer => AppColors.primary,
+        MovementKind.opening => AppColors.gold,
       };
 
   IconData get _icon => switch (entry.kind) {
@@ -29,6 +30,7 @@ class MovementTile extends StatelessWidget {
         MovementKind.expense => Icons.arrow_upward_rounded,
         MovementKind.investment => Icons.trending_up_rounded,
         MovementKind.transfer => Icons.swap_horiz_rounded,
+        MovementKind.opening => Icons.account_balance_wallet_rounded,
       };
 
   String get _amountLabel {
@@ -38,6 +40,7 @@ class MovementTile extends StatelessWidget {
       MovementKind.expense => '-$formatted',
       MovementKind.investment => '-$formatted',
       MovementKind.transfer => formatted,
+      MovementKind.opening => '+$formatted',
     };
   }
 

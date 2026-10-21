@@ -134,6 +134,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       notificationsEnabled: _notifications,
       firstDayOfMonth: _firstDayOfMonth,
       cdiRate: _cdiRate,
+      onboardingCompleted:
+          ref.read(settingsProvider).valueOrNull?.onboardingCompleted ?? false,
     );
 
     await ref.read(userRepositoryProvider).updateSettings(user.id, settings);

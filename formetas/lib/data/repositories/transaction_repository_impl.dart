@@ -31,6 +31,10 @@ class TransactionRepositoryImpl implements TransactionRepository {
       _dataSource.createTransaction(transaction);
 
   @override
+  Future<void> createTransactions(List<TransactionEntity> transactions) =>
+      _dataSource.createTransactions(transactions);
+
+  @override
   Future<void> updateTransaction(TransactionEntity transaction) =>
       _dataSource.updateTransaction(transaction);
 

@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/asset_trade_entity.dart';
-import '../../presentation/providers/app_mode_provider.dart';
 import '../../presentation/providers/auth_controller.dart';
 import '../../presentation/providers/core_providers.dart';
+import '../../presentation/providers/onboarding_provider.dart';
+import '../../presentation/screens/onboarding/onboarding_screen.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
@@ -31,6 +32,7 @@ import '../../presentation/screens/reports/reports_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transfer/transfer_screen.dart';
+import '../../presentation/screens/transactions/statement_import_screen.dart';
 import '../../presentation/screens/transactions/transaction_form_screen.dart';
 import '../../presentation/screens/transactions/transactions_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen.dart';
@@ -47,6 +49,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       final isSplash = state.matchedLocation == '/splash';
+      final isOnboarding = state.matchedLocation == '/onboarding';
       if (isSplash) return null;
 
       // Durante login/cadastro o Firebase já cria a sessão; esperamos o
@@ -58,16 +61,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       // a pessoa cai na Home como se ainda estivesse logada.
       final signedIn = ref.read(authRepositoryProvider).currentUser != null;
 
-      if (!signedIn && !isAuthRoute) return '/auth/login';
-      if (signedIn && isAuthRoute) {
-        return ref.read(appModeProvider).homeRoute;
+      if (!signedIn) {
+        if (isAuthRoute) return null;
+        return '/auth/login';
       }
+
+      final landing = landingRoute(ref);
+      if (isAuthRoute) return landing;
+      if (landing == '/onboarding') {
+        return isOnboarding ? null : '/onboarding';
+      }
+      if (isOnboarding) return landing;
       return null;
     },
     routes: [
       GoRoute(
         path: '/splash',
         builder: (_, _) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, _) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/auth/login',
@@ -170,6 +184,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = state.pathParameters['id']!;
           return TransactionFormScreen(transactionId: id);
         },
+      ),
+      GoRoute(
+        path: '/transactions/import',
+        builder: (_, _) => const StatementImportScreen(),
       ),
       GoRoute(
         path: '/ativo/:id',
