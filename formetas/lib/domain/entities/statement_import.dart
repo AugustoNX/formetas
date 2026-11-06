@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import 'transaction_entity.dart';
 
+enum StatementRole { transaction, toReserve, fromReserve, ownTransfer, ignored }
+
 class StatementEntry extends Equatable {
   const StatementEntry({
     required this.line,
@@ -10,6 +12,7 @@ class StatementEntry extends Equatable {
     required this.type,
     required this.description,
     this.category = 'Outros',
+    this.role = StatementRole.transaction,
     this.sourceId,
     this.included = true,
     this.duplicate = false,
@@ -21,6 +24,7 @@ class StatementEntry extends Equatable {
   final TransactionType type;
   final String description;
   final String category;
+  final StatementRole role;
   final String? sourceId;
   final bool included;
   final bool duplicate;
@@ -31,6 +35,7 @@ class StatementEntry extends Equatable {
     TransactionType? type,
     String? description,
     String? category,
+    StatementRole? role,
     bool? included,
     bool? duplicate,
   }) {
@@ -41,6 +46,7 @@ class StatementEntry extends Equatable {
       type: type ?? this.type,
       description: description ?? this.description,
       category: category ?? this.category,
+      role: role ?? this.role,
       sourceId: sourceId,
       included: included ?? this.included,
       duplicate: duplicate ?? this.duplicate,
@@ -55,6 +61,7 @@ class StatementEntry extends Equatable {
         type,
         description,
         category,
+        role,
         sourceId,
         included,
         duplicate,

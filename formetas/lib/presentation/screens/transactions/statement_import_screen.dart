@@ -2,19 +2,25 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../domain/entities/ant_brain.dart';
 import '../../../domain/entities/category_entity.dart';
+import '../../../domain/entities/import_rule.dart';
 import '../../../domain/entities/statement_import.dart';
 import '../../../domain/entities/transaction_entity.dart';
-import '../../../domain/services/statement_importer.dart';
+import '../../../domain/entities/transfer_entity.dart';
+import '../../../domain/services/ml/smart_categorizer.dart';
+import '../../../domain/services/recurrence_detector.dart';
 import '../../../domain/services/statement_parser.dart';
+import '../../providers/ant_brain_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/statement_import_review.dart';
 
 class StatementImportScreen extends ConsumerStatefulWidget {
   const StatementImportScreen({super.key});
@@ -38,7 +44,7 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
   );
 
   StatementParseResult? _result;
-  List<StatementEntry> _rows = const [];
+  List<CategorizedEntry> _rows = const [];
   String? _fileName;
   bool _reading = false;
   bool _saving = false;
@@ -65,15 +71,40 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
       final bytes = await file.readAsBytes();
       final parsed = StatementParser.parse(StatementParser.decode(bytes));
       final existing = await _existingTransactions();
+      final transfers = await _existingTransfers();
+      final rules = await _learnedRules();
+      final brain = await _brain();
       if (!mounted) return;
+      final categorized = SmartCategorizer(
+        classifier: brain.model,
+        rules: rules,
+        patterns: RecurrenceDetector().detect(existing),
+        userName: ref.read(currentUserProvider)?.name,
+      ).categorize(parsed.entries);
+      final marked = StatementParser.markDuplicates(
+        [for (final row in categorized) row.entry],
+        existing,
+        transfers: transfers,
+      );
       setState(() {
         _result = parsed;
-        _rows = StatementParser.markDuplicates(parsed.entries, existing);
+        _rows = [
+          for (var i = 0; i < categorized.length; i++)
+            categorized[i].copyWith(entry: marked[i]),
+        ];
       });
     } catch (_) {
       if (mounted) _snack('Não foi possível ler o arquivo.');
     } finally {
       if (mounted) setState(() => _reading = false);
+    }
+  }
+
+  Future<AntBrainSnapshot> _brain() async {
+    try {
+      return await ref.read(antBrainProvider.future);
+    } catch (_) {
+      return AntBrainSnapshot.empty();
     }
   }
 
@@ -85,19 +116,39 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
     }
   }
 
+  Future<List<ImportRule>> _learnedRules() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return const [];
+    try {
+      return await ref.read(importRuleRepositoryProvider).getRules(user.id);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<List<TransferEntity>> _existingTransfers() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return const [];
+    try {
+      return await ref.read(transferRepositoryProvider).getTransfers(user.id);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> _edit(int index) async {
     final updated = await showModalBottomSheet<StatementEntry>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => _EditSheet(
-        entry: _rows[index],
+        entry: _rows[index].entry,
         incomeCategories: _names(TransactionType.income),
         expenseCategories: _names(TransactionType.expense),
       ),
     );
     if (updated == null || !mounted) return;
-    setState(() => _rows[index] = updated);
+    setState(() => _rows[index] = _rows[index].copyWith(entry: updated));
   }
 
   List<String> _names(TransactionType type) {
@@ -118,28 +169,37 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
   void _setIncluded(bool included) {
     setState(() {
       _rows = [
-        for (final row in _rows) row.copyWith(included: included),
+        for (final row in _rows)
+          row.copyWith(entry: row.entry.copyWith(included: included)),
       ];
     });
+  }
+
+  void _applySimilar(int index) {
+    final category = _rows[index].entry.category;
+    setState(() => _rows = withSimilarCategory(_rows, index, category));
   }
 
   void _invertTypes() {
     setState(() {
       _rows = [
         for (final row in _rows)
-          if (row.type != TransactionType.income &&
-              row.type != TransactionType.expense)
+          if (row.entry.role != StatementRole.transaction ||
+              (row.entry.type != TransactionType.income &&
+                  row.entry.type != TransactionType.expense))
             row
           else
             row.copyWith(
-              type: row.type == TransactionType.income
-                  ? TransactionType.expense
-                  : TransactionType.income,
-              category: _categoryFor(
-                row.type == TransactionType.income
+              entry: row.entry.copyWith(
+                type: row.entry.type == TransactionType.income
                     ? TransactionType.expense
                     : TransactionType.income,
-                row.category,
+                category: _categoryFor(
+                  row.entry.type == TransactionType.income
+                      ? TransactionType.expense
+                      : TransactionType.income,
+                  row.entry.category,
+                ),
               ),
             ),
       ];
@@ -147,13 +207,23 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
   }
 
   Future<void> _confirm() async {
-    final selected = _rows.where((row) => row.included).toList();
+    final selected = _rows.where((row) => row.entry.included).toList();
     if (selected.isEmpty) {
       _snack('Selecione ao menos um lançamento.');
       return;
     }
-    if (selected.any((row) => row.description.trim().isEmpty || row.amount <= 0)) {
+    if (selected.any(
+      (row) => row.entry.description.trim().isEmpty || row.entry.amount <= 0,
+    )) {
       _snack('Preencha descrição e valor dos lançamentos marcados.');
+      return;
+    }
+    if (selected.any(
+      (row) =>
+          row.entry.role == StatementRole.transaction &&
+          row.entry.category.trim().isEmpty,
+    )) {
+      _snack('Escolha a categoria das linhas marcadas para revisar.');
       return;
     }
 
@@ -162,28 +232,65 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
 
     setState(() => _saving = true);
     try {
-      final transactions = StatementImporter.build(
-        userId: user.id,
-        entries: [
-          for (final row in selected)
-            row.copyWith(category: _categoryFor(row.type, row.category)),
-        ],
-        nextId: const Uuid().v4,
-      );
-      await ref.read(transactionRepositoryProvider).createTransactions(transactions);
+      final result = await ref
+          .read(statementImportServiceProvider)
+          .save(
+            userId: user.id,
+            entries: [
+              for (final row in selected)
+                row.entry.role == StatementRole.transaction
+                    ? row.entry.copyWith(
+                        category: row.entry.category.trim().isEmpty
+                            ? 'Outros'
+                            : row.entry.category.trim(),
+                      )
+                    : row.entry,
+            ],
+            cdiRate:
+                ref.read(settingsProvider).valueOrNull?.cdiRate ??
+                AppConstants.defaultCdiRate,
+          );
       if (!mounted) return;
 
-      final latest = selected.map((row) => row.date).reduce(
-            (a, b) => a.isAfter(b) ? a : b,
-          );
-      ref.read(selectedMonthProvider.notifier).state =
-          DateTime(latest.year, latest.month);
+      ImportSummary? summary;
+      try {
+        summary = await ref
+            .read(antBrainProvider.notifier)
+            .learnImport(selected);
+      } catch (_) {}
 
-      final count = transactions.length;
-      _snack(
-        count == 1 ? '1 lançamento importado.' : '$count lançamentos importados.',
+      if (!mounted) return;
+      final latest = selected
+          .map((row) => row.entry.date)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      ref.read(selectedMonthProvider.notifier).state = DateTime(
+        latest.year,
+        latest.month,
       );
-      context.pop();
+
+      if (summary != null) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Extrato importado'),
+            content: Text(summary!.message),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Continuar'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        final count = result.total;
+        _snack(
+          count == 1
+              ? '1 lançamento importado.'
+              : '$count lançamentos importados.',
+        );
+      }
+      if (mounted) context.pop();
     } catch (_) {
       if (mounted) _snack('Não foi possível salvar o extrato.');
     } finally {
@@ -192,14 +299,17 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(categoriesProvider);
     final result = _result;
-    final ready = result != null &&
+    final ready =
+        result != null &&
         !result.failed &&
         (_rows.isNotEmpty || result.rejected.isNotEmpty);
 
@@ -241,45 +351,70 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
             child: _reading
                 ? const Center(child: CircularProgressIndicator())
                 : ready
-                    ? _ReviewBody(
-                        result: result,
-                        rows: _rows,
-                        fileName: _fileName,
-                        incomeCategories: _names(TransactionType.income),
-                        expenseCategories: _names(TransactionType.expense),
-                        onToggle: (index, included) => setState(() {
-                          _rows[index] = _rows[index].copyWith(included: included);
-                        }),
-                        onCategory: (index, category) => setState(() {
-                          _rows[index] = _rows[index].copyWith(category: category);
-                        }),
-                        onEdit: _edit,
-                      )
-                    : _EmptyState(
-                        message: result?.message,
-                        fileName: _fileName,
-                        onPick: _pick,
+                ? Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                        child: _MappingBanner(
+                          result: result,
+                          fileName: _fileName,
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: StatementImportReview(
+                          rejected: result.rejected,
+                          rows: _rows,
+                          incomeCategories: _names(TransactionType.income),
+                          expenseCategories: _names(TransactionType.expense),
+                          onToggle: (index, included) => setState(() {
+                            _rows[index] = _rows[index].copyWith(
+                              entry: _rows[index].entry.copyWith(
+                                included: included,
+                              ),
+                            );
+                          }),
+                          onCategory: (index, category) => setState(() {
+                            _rows[index] = _rows[index].copyWith(
+                              entry: _rows[index].entry.copyWith(
+                                category: category,
+                              ),
+                            );
+                          }),
+                          onRole: (index, role) => setState(() {
+                            final entry = _rows[index].entry;
+                            _rows[index] = _rows[index].copyWith(
+                              entry: entry.copyWith(
+                                role: role,
+                                category: role == StatementRole.transaction
+                                    ? 'Outros'
+                                    : entry.category,
+                              ),
+                            );
+                          }),
+                          onEdit: _edit,
+                          onApplySimilar: _applySimilar,
+                        ),
+                      ),
+                    ],
+                  )
+                : _EmptyState(
+                    message: result?.message,
+                    fileName: _fileName,
+                    onPick: _pick,
+                  ),
           ),
         ),
       ),
       bottomNavigationBar: ready && _rows.isNotEmpty
-          ? _ConfirmBar(
-              rows: _rows,
-              saving: _saving,
-              onConfirm: _confirm,
-            )
+          ? _ConfirmBar(rows: _rows, saving: _saving, onConfirm: _confirm)
           : null,
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.onPick,
-    this.message,
-    this.fileName,
-  });
+  const _EmptyState({required this.onPick, this.message, this.fileName});
 
   final VoidCallback onPick;
   final String? message;
@@ -302,9 +437,9 @@ class _EmptyState extends StatelessWidget {
             'Extrato do banco',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -324,7 +459,9 @@ class _EmptyState extends StatelessWidget {
           FilledButton.icon(
             onPressed: onPick,
             icon: const Icon(Icons.folder_open_rounded),
-            label: Text(message == null ? 'Escolher CSV' : 'Escolher outro CSV'),
+            label: Text(
+              message == null ? 'Escolher CSV' : 'Escolher outro CSV',
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               minimumSize: const Size(220, 48),
@@ -332,66 +469,6 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ReviewBody extends StatelessWidget {
-  const _ReviewBody({
-    required this.result,
-    required this.rows,
-    required this.fileName,
-    required this.incomeCategories,
-    required this.expenseCategories,
-    required this.onToggle,
-    required this.onCategory,
-    required this.onEdit,
-  });
-
-  final StatementParseResult result;
-  final List<StatementEntry> rows;
-  final String? fileName;
-  final List<String> incomeCategories;
-  final List<String> expenseCategories;
-  final void Function(int index, bool included) onToggle;
-  final void Function(int index, String category) onCategory;
-  final ValueChanged<int> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final rejected = result.rejected;
-    final header = rejected.isNotEmpty ? 1 : 0;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-          child: _MappingBanner(result: result, fileName: fileName),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            itemCount: rows.length + header,
-            itemBuilder: (context, index) {
-              if (header == 1 && index == 0) {
-                return _RejectedBlock(rejected: rejected);
-              }
-              final rowIndex = index - header;
-              final row = rows[rowIndex];
-              return _RowCard(
-                row: row,
-                categories: row.type == TransactionType.income
-                    ? incomeCategories
-                    : expenseCategories,
-                onToggle: (included) => onToggle(rowIndex, included),
-                onCategory: (category) => onCategory(rowIndex, category),
-                onEdit: () => onEdit(rowIndex),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }
@@ -431,222 +508,13 @@ class _MappingBanner extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Colunas lidas: ${columns.join(' · ')}',
-              style: TextStyle(color: AppColors.gray, fontSize: 13, height: 1.35),
+              style: TextStyle(
+                color: AppColors.gray,
+                fontSize: 13,
+                height: 1.35,
+              ),
             ),
           ],
-          const SizedBox(height: 4),
-          Text(
-            'Valor positivo entra como receita. Valor negativo entra como despesa.',
-            style: TextStyle(color: AppColors.gray, fontSize: 13, height: 1.35),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RowCard extends StatelessWidget {
-  const _RowCard({
-    required this.row,
-    required this.categories,
-    required this.onToggle,
-    required this.onCategory,
-    required this.onEdit,
-  });
-
-  final StatementEntry row;
-  final List<String> categories;
-  final ValueChanged<bool> onToggle;
-  final ValueChanged<String> onCategory;
-  final VoidCallback onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final income = row.type == TransactionType.income;
-    final color = income ? AppColors.income : AppColors.expense;
-    final missing = row.description.trim().isEmpty;
-    final options = [
-      ...categories.where((name) => name.trim().isNotEmpty),
-      if (!categories.contains('Outros')) 'Outros',
-    ];
-    final selected = options.contains(row.category) ? row.category : 'Outros';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Checkbox(
-              value: row.included,
-              onChanged: (value) => onToggle(value ?? false),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10, bottom: 8, right: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: onEdit,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                AppDateUtils.formatDate(row.date),
-                                style: const TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                income ? 'Receita' : 'Despesa',
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${income ? '+' : '-'}${CurrencyFormatter.format(row.amount)}',
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            missing ? 'Sem descrição' : row.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: missing ? AppColors.expense : null,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey('${row.line}-${row.type.name}-$selected'),
-                      initialValue: selected,
-                      isExpanded: true,
-                      icon: const Icon(Icons.expand_more_rounded),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Categoria',
-                        filled: true,
-                        fillColor: AppColors.primary.withValues(alpha: 0.08),
-                        prefixIcon: const Icon(
-                          Icons.sell_outlined,
-                          color: AppColors.primary,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: AppColors.primary.withValues(alpha: 0.45),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 1.6,
-                          ),
-                        ),
-                      ),
-                      items: [
-                        for (final name in options)
-                          DropdownMenuItem(
-                            value: name,
-                            child: Text(
-                              name,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null || value == selected) return;
-                        onCategory(value);
-                      },
-                    ),
-                    if (row.duplicate) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Já lançado',
-                        style: TextStyle(
-                          color: AppColors.gray,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Editar',
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined, size: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RejectedBlock extends StatelessWidget {
-  const _RejectedBlock({required this.rejected});
-
-  final List<StatementRejection> rejected;
-
-  @override
-  Widget build(BuildContext context) {
-    final shown = rejected.take(30).toList();
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ExpansionTile(
-        title: Text('${rejected.length} linhas ignoradas'),
-        subtitle: const Text('Data ou valor não puderam ser lidos'),
-        children: [
-          for (final item in shown)
-            ListTile(
-              dense: true,
-              title: Text('Linha ${item.line} · ${item.reason}'),
-              subtitle: Text(
-                item.raw,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          if (rejected.length > shown.length)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'e mais ${rejected.length - shown.length}',
-                style: TextStyle(color: AppColors.gray),
-              ),
-            ),
         ],
       ),
     );
@@ -660,19 +528,30 @@ class _ConfirmBar extends StatelessWidget {
     required this.onConfirm,
   });
 
-  final List<StatementEntry> rows;
+  final List<CategorizedEntry> rows;
   final bool saving;
   final VoidCallback onConfirm;
 
   @override
   Widget build(BuildContext context) {
-    final selected = rows.where((row) => row.included).toList();
-    final income = selected
-        .where((row) => row.type == TransactionType.income)
-        .fold(0.0, (sum, row) => sum + row.amount);
-    final expense = selected
-        .where((row) => row.type == TransactionType.expense)
-        .fold(0.0, (sum, row) => sum + row.amount);
+    final selected = rows.where((row) => row.entry.included).toList();
+    final spending = selected
+        .where(
+          (row) =>
+              row.entry.role == StatementRole.transaction &&
+              row.entry.type == TransactionType.expense,
+        )
+        .fold(0.0, (sum, row) => sum + row.entry.amount);
+    final box = selected
+        .where((row) => row.entry.role == StatementRole.toReserve)
+        .fold(0.0, (sum, row) => sum + row.entry.amount);
+    final salary = selected
+        .where(
+          (row) =>
+              row.entry.role == StatementRole.transaction &&
+              row.entry.category == 'Salário',
+        )
+        .fold(0.0, (sum, row) => sum + row.entry.amount);
 
     return SafeArea(
       child: Padding(
@@ -681,9 +560,9 @@ class _ConfirmBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${selected.length} de ${rows.length} selecionados · '
-              'receitas ${CurrencyFormatter.format(income)} · '
-              'despesas ${CurrencyFormatter.format(expense)}',
+              'Gasto ${CurrencyFormatter.format(spending)} · '
+              'Caixinha ${CurrencyFormatter.format(box)} · '
+              'Salário ${CurrencyFormatter.format(salary)}',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.gray, fontSize: 13),
             ),
@@ -818,15 +697,21 @@ class _EditSheetState extends State<_EditSheet> {
         children: [
           Text(
             'Lançamento',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           SegmentedButton<TransactionType>(
             segments: const [
-              ButtonSegment(value: TransactionType.income, label: Text('Receita')),
-              ButtonSegment(value: TransactionType.expense, label: Text('Despesa')),
+              ButtonSegment(
+                value: TransactionType.income,
+                label: Text('Receita'),
+              ),
+              ButtonSegment(
+                value: TransactionType.expense,
+                label: Text('Despesa'),
+              ),
             ],
             selected: {_type},
             onSelectionChanged: (value) {
@@ -865,7 +750,9 @@ class _EditSheetState extends State<_EditSheet> {
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             key: ValueKey('${_type.name}-$_category'),
-            initialValue: options.contains(_category) ? _category : options.first,
+            initialValue: options.contains(_category)
+                ? _category
+                : options.first,
             decoration: const InputDecoration(labelText: 'Categoria'),
             items: [
               for (final name in options)

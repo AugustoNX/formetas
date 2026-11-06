@@ -9,6 +9,7 @@ class GoalModel extends GoalEntity {
     required super.currentValue,
     required super.targetDate,
     required super.createdAt,
+    super.reserveId,
   });
 
   factory GoalModel.fromMap(Map<String, dynamic> map, String id) {
@@ -20,6 +21,7 @@ class GoalModel extends GoalEntity {
       currentValue: (map['valorAtual'] ?? map['currentValue'] ?? 0).toDouble(),
       targetDate: _parseDate(map['dataObjetivo'] ?? map['targetDate']),
       createdAt: _parseDate(map['criadoEm'] ?? map['createdAt']),
+      reserveId: map['caixinhaId'] as String? ?? map['reserveId'] as String?,
     );
   }
 
@@ -32,6 +34,7 @@ class GoalModel extends GoalEntity {
       currentValue: entity.currentValue,
       targetDate: entity.targetDate,
       createdAt: entity.createdAt,
+      reserveId: entity.reserveId,
     );
   }
 
@@ -42,6 +45,7 @@ class GoalModel extends GoalEntity {
       'valorMeta': targetValue,
       'valorAtual': currentValue,
       'dataObjetivo': targetDate.toIso8601String(),
+      'caixinhaId': reserveId,
       'criadoEm': createdAt.toIso8601String(),
     };
   }

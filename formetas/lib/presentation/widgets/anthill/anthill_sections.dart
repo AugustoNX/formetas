@@ -40,6 +40,7 @@ class AntSummaryCard extends StatelessWidget {
               AntCharacter(
                 level: snapshot.level.level,
                 size: 96,
+                mood: snapshot.antMood,
                 animated: snapshot.profile.animationsEnabled,
               ),
               const SizedBox(width: 12),
@@ -153,28 +154,6 @@ class WinterChecklistCard extends StatelessWidget {
           for (final task in winter.tasks) WinterTaskTile(task: task),
         ],
       ),
-    );
-  }
-}
-
-class MissionsSection extends StatelessWidget {
-  const MissionsSection({super.key, required this.missions});
-
-  final List<MissionStatus> missions;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = missions.where((m) => m.isComplete).length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AnthillSectionHeader(
-          title: 'Missões do mês',
-          subtitle: '$done de ${missions.length} concluídas',
-        ),
-        for (final mission in missions) MissionTile(mission: mission),
-      ],
     );
   }
 }

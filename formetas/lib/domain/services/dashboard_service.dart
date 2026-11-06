@@ -7,6 +7,7 @@ import '../../domain/entities/reserve_movement_entity.dart';
 import '../../domain/entities/settings_entity.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
+import '../../core/utils/balance_cutoff.dart';
 import '../../core/utils/date_utils.dart';
 
 class DashboardService {
@@ -21,12 +22,17 @@ class DashboardService {
   }) {
     final monthStart = AppDateUtils.startOfMonth(selectedMonth);
     final monthEnd = AppDateUtils.endOfMonth(selectedMonth);
+    final countFrom = BalanceCutoff.resolve(
+      saved: settings.balanceAsOf,
+      transactions: transactions,
+    );
 
     final allMonths = MonthlyBalanceCalculator.compute(
       transactions: transactions,
       transfers: transfers,
       fromMonth: _earliestMonth(transactions, transfers, selectedMonth),
       toMonth: selectedMonth,
+      countFrom: countFrom,
     );
 
     final currentSummary = allMonths.isNotEmpty ? allMonths.last : null;
@@ -34,7 +40,9 @@ class DashboardService {
     final closingBalance = currentSummary?.closingBalance ?? 0;
 
     final monthTransactions = transactions.where((t) {
-      return !t.date.isBefore(monthStart) && !t.date.isAfter(monthEnd);
+      return !t.date.isBefore(monthStart) &&
+          !t.date.isAfter(monthEnd) &&
+          BalanceCutoff.counts(t.date, countFrom);
     }).toList();
 
     final monthlyIncome = monthTransactions
@@ -76,12 +84,14 @@ class DashboardService {
     }
 
     final monthlyTrend = allMonths
-        .map((m) => MonthlyTrendPoint(
-              month: m.month,
-              income: m.income,
-              expense: m.expense,
-              balance: m.closingBalance,
-            ))
+        .map(
+          (m) => MonthlyTrendPoint(
+            month: m.month,
+            income: m.income,
+            expense: m.expense,
+            balance: m.closingBalance,
+          ),
+        )
         .toList();
 
     final recent = transactions.take(10).toList();
@@ -113,7 +123,9 @@ class DashboardService {
     required SettingsEntity settings,
     List<AssetPosition> positions = const [],
   }) {
-    final expenses = transactions.where((t) => t.type == TransactionType.expense);
+    final expenses = transactions.where(
+      (t) => t.type == TransactionType.expense,
+    );
     final incomes = transactions.where((t) => t.type == TransactionType.income);
 
     TransactionEntity? largestExpense;
@@ -132,23 +144,28 @@ class DashboardService {
     }
 
     final now = DateTime.now();
+    final countFrom = BalanceCutoff.resolve(
+      saved: settings.balanceAsOf,
+      transactions: transactions,
+    );
     final fromMonth = _earliestMonth(transactions, transfers, now);
     final summaries = MonthlyBalanceCalculator.compute(
       transactions: transactions,
       transfers: transfers,
       fromMonth: fromMonth,
       toMonth: now,
+      countFrom: countFrom,
     );
 
     final avgExpense = summaries.isEmpty
         ? 0.0
         : summaries.map((m) => m.expense).reduce((a, b) => a + b) /
-            summaries.length;
+              summaries.length;
 
     final avgSavings = summaries.isEmpty
         ? 0.0
         : summaries.map((m) => m.savings).reduce((a, b) => a + b) /
-            summaries.length;
+              summaries.length;
 
     final expenseByCat = <String, double>{};
     final incomeByCat = <String, double>{};
@@ -177,7 +194,9 @@ class DashboardService {
     final totalReserves = reserveTotals.total;
     final reserveYield = reserveTotals.accumulatedYield;
 
-    final currentBalance = summaries.isEmpty ? 0.0 : summaries.last.closingBalance;
+    final currentBalance = summaries.isEmpty
+        ? 0.0
+        : summaries.last.closingBalance;
     final netWorth = currentBalance + totalInvestmentsValue + totalReserves;
 
     return StatisticsSummary(

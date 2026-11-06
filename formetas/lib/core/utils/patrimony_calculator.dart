@@ -3,6 +3,7 @@ import '../../domain/entities/reserve_movement_entity.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
 import 'asset_calculator.dart';
+import 'balance_cutoff.dart';
 import 'investment_calculator.dart';
 import 'monthly_balance_calculator.dart';
 import 'reserve_calculator.dart';
@@ -38,15 +39,18 @@ abstract final class PatrimonyCalculator {
     required List<TransactionEntity> transactions,
     required List<TransferEntity> transfers,
     DateTime? until,
+    DateTime? countFrom,
   }) {
     if (transactions.isEmpty && transfers.isEmpty) return 0;
 
     final reference = until ?? DateTime.now();
+    final from = countFrom ?? BalanceCutoff.resolve(transactions: transactions);
     final summaries = MonthlyBalanceCalculator.compute(
       transactions: transactions,
       transfers: transfers,
       fromMonth: earliestMonth(transactions, transfers, reference),
       toMonth: reference,
+      countFrom: from,
     );
 
     if (summaries.isEmpty) return 0;
@@ -84,7 +88,8 @@ abstract final class PatrimonyCalculator {
   /// [positions] são os ativos de mercado, que valem quantidade × cotação. Os
   /// proventos já recebidos entram como rendimento, não como saldo: o dinheiro
   /// deles já está no saldo da conta.
-  static ({double total, double accumulatedYield, double principal}) investments({
+  static ({double total, double accumulatedYield, double principal})
+  investments({
     required List<InvestmentEntity> investments,
     required double cdiRate,
     DateTime? referenceDate,
@@ -134,6 +139,7 @@ abstract final class PatrimonyCalculator {
     required double cdiRate,
     DateTime? until,
     List<AssetPosition> positions = const [],
+    DateTime? countFrom,
   }) {
     final reserveTotals = reserves(
       reserves: reservesWithMovements,
@@ -152,6 +158,7 @@ abstract final class PatrimonyCalculator {
         transactions: transactions,
         transfers: transfers,
         until: until,
+        countFrom: countFrom,
       ),
       reserves: reserveTotals.total,
       investments: investmentTotals.total,

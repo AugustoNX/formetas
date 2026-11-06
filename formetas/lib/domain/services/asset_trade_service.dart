@@ -28,8 +28,8 @@ class AssetTradeService {
   AssetTradeService({
     required AssetRepository assetRepository,
     required TransferRepository transferRepository,
-  })  : _assetRepository = assetRepository,
-        _transferRepository = transferRepository;
+  }) : _assetRepository = assetRepository,
+       _transferRepository = transferRepository;
 
   final AssetRepository _assetRepository;
   final TransferRepository _transferRepository;
@@ -69,6 +69,7 @@ class AssetTradeService {
     double dividendAmount = 0,
     String? note,
     bool isNewAsset = false,
+    DateTime? countFrom,
   }) async {
     final amount = AssetTradeEntity.totalFor(
       type: type,
@@ -87,6 +88,7 @@ class AssetTradeService {
       position: position,
       transactions: transactions,
       transfers: transfers,
+      countFrom: countFrom,
     );
 
     if (isNewAsset) await saveAsset(asset);
@@ -131,11 +133,7 @@ class AssetTradeService {
 
   /// Apaga o lançamento e desfaz a transferência que ele criou.
   Future<void> removeTrade(AssetTradeEntity trade) async {
-    await _assetRepository.deleteTrade(
-      trade.userId,
-      trade.assetId,
-      trade.id,
-    );
+    await _assetRepository.deleteTrade(trade.userId, trade.assetId, trade.id);
     final transferId = trade.transferId;
     if (transferId != null) {
       await _transferRepository.deleteTransfer(trade.userId, transferId);
@@ -162,6 +160,7 @@ class AssetTradeService {
     required AssetPosition? position,
     required List<TransactionEntity> transactions,
     required List<TransferEntity> transfers,
+    DateTime? countFrom,
   }) {
     if (type == AssetTradeType.dividend) {
       if (amount <= 0) {
@@ -192,6 +191,7 @@ class AssetTradeService {
     final balance = PatrimonyCalculator.balance(
       transactions: transactions,
       transfers: transfers,
+      countFrom: countFrom,
     );
     if (CurrencyFormatter.exceeds(amount, balance)) {
       throw AssetTradeException(
@@ -210,7 +210,8 @@ class AssetTradeService {
     };
   }
 
-  String _unit(AssetEntity asset) => AssetClassLabels.unitLabel(asset.assetClass);
+  String _unit(AssetEntity asset) =>
+      AssetClassLabels.unitLabel(asset.assetClass);
 
   static String _quantityLabel(double quantity) {
     if (quantity == quantity.roundToDouble()) {

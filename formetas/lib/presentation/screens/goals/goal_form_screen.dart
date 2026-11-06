@@ -7,8 +7,10 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/goal_entity.dart';
+import '../../../domain/entities/reserve_movement_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
+import '../../providers/data_providers.dart';
 
 class GoalFormScreen extends ConsumerStatefulWidget {
   const GoalFormScreen({super.key, this.goalId});
@@ -26,6 +28,7 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
   final _currentController = TextEditingController();
 
   DateTime _targetDate = DateTime.now().add(const Duration(days: 365));
+  String _reserveId = '';
   bool _isLoading = false;
   GoalEntity? _existing;
 
@@ -47,6 +50,7 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
         _targetController.text = CurrencyFormatter.formatForInput(goal.targetValue);
         _currentController.text = CurrencyFormatter.formatForInput(goal.currentValue);
         _targetDate = goal.targetDate;
+        _reserveId = goal.reserveId ?? '';
       });
     }
   }
@@ -64,7 +68,10 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
 
-    setState(() => _isLoading = true);
+    final reserves =
+        ref.read(reservesWithMovementsProvider).valueOrNull ?? const <ReserveWithMovements>[];
+    final linked = _reserveId.isNotEmpty &&
+        reserves.any((item) => item.reserve.id == _reserveId);
 
     try {
       final goal = GoalEntity(
@@ -72,9 +79,12 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
         userId: user.id,
         name: _nameController.text,
         targetValue: CurrencyFormatter.parse(_targetController.text) ?? 0,
-        currentValue: CurrencyFormatter.parse(_currentController.text) ?? 0,
+        currentValue: _reserveId.isEmpty
+            ? (CurrencyFormatter.parse(_currentController.text) ?? 0)
+            : (_existing?.currentValue ?? 0),
         targetDate: _targetDate,
         createdAt: _existing?.createdAt ?? DateTime.now(),
+        reserveId: linked ? _reserveId : null,
       );
 
       final repo = ref.read(goalRepositoryProvider);
@@ -100,6 +110,11 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final reserves =
+        ref.watch(reservesWithMovementsProvider).valueOrNull ?? const <ReserveWithMovements>[];
+    final linked = reserves.any((item) => item.reserve.id == _reserveId);
+    final reserveValue = _reserveId.isEmpty ? '' : _reserveId;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_existing != null ? 'Editar meta' : 'Nova meta'),
@@ -143,15 +158,44 @@ class _GoalFormScreenState extends ConsumerState<GoalFormScreen> {
               validator: (v) => v?.isEmpty == true ? 'Informe o valor' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _currentController,
-              keyboardType: TextInputType.number,
-              inputFormatters: CurrencyFormatter.inputFormatters,
-              decoration: const InputDecoration(
-                labelText: 'Valor atual',
-                prefixText: 'R\$ ',
-              ),
+            DropdownButtonFormField<String>(
+              key: ValueKey(reserveValue),
+              initialValue: linked || reserveValue.isEmpty ? reserveValue : '',
+              decoration: const InputDecoration(labelText: 'Caixinha'),
+              items: [
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('Sem caixinha, informar valor'),
+                ),
+                for (final item in reserves)
+                  DropdownMenuItem(
+                    value: item.reserve.id,
+                    child: Text(item.reserve.name),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value == null || value == _reserveId) return;
+                setState(() => _reserveId = value);
+              },
             ),
+            if (_reserveId.isEmpty) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _currentController,
+                keyboardType: TextInputType.number,
+                inputFormatters: CurrencyFormatter.inputFormatters,
+                decoration: const InputDecoration(
+                  labelText: 'Valor atual',
+                  prefixText: 'R\$ ',
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              Text(
+                'O valor atual acompanha essa caixinha.',
+                style: TextStyle(color: AppColors.gray, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,

@@ -1,6 +1,7 @@
 import '../constants/app_constants.dart';
 import '../../domain/entities/reserve_entity.dart';
 import '../../domain/entities/reserve_movement_entity.dart';
+import 'balance_cutoff.dart';
 import 'investment_calculator.dart';
 
 abstract final class ReserveCalculator {
@@ -23,6 +24,7 @@ abstract final class ReserveCalculator {
     }
 
     for (final movement in movements) {
+      if (!BalanceCutoff.counts(movement.date, reserve.startDate)) continue;
       final signed = movement.type == ReserveMovementType.deposit
           ? movement.amount
           : -movement.amount;

@@ -8,6 +8,7 @@ import '../../../domain/entities/settings_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
+import '../../widgets/ant_brain_section.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -50,9 +51,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Text(
             'Preferências',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           ListTile(
@@ -89,9 +90,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 24),
           Text(
             'Taxa CDI',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -112,6 +113,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 24),
+          const AntBrainSection(),
+          const SizedBox(height: 16),
           FilledButton(
             onPressed: _save,
             style: FilledButton.styleFrom(
@@ -136,6 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       cdiRate: _cdiRate,
       onboardingCompleted:
           ref.read(settingsProvider).valueOrNull?.onboardingCompleted ?? false,
+      balanceAsOf: ref.read(settingsProvider).valueOrNull?.balanceAsOf,
     );
 
     await ref.read(userRepositoryProvider).updateSettings(user.id, settings);

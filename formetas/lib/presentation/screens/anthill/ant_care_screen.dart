@@ -12,6 +12,7 @@ import '../../providers/anthill_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/anthill/ant_character.dart';
 import '../../widgets/anthill/anthill_palette.dart';
+import '../../widgets/anthill/anthill_rhythm_cards.dart';
 import '../../widgets/anthill/anthill_widgets.dart';
 import '../../widgets/formetas_card.dart';
 
@@ -59,6 +60,7 @@ class _Content extends ConsumerWidget {
                     AntCharacter(
                       level: snapshot.level.level,
                       size: 170,
+                      mood: snapshot.antMood,
                       animated: snapshot.profile.animationsEnabled,
                     ),
                     const SizedBox(height: 8),
@@ -95,6 +97,11 @@ class _Content extends ConsumerWidget {
                         fontSize: 12.5,
                         height: 1.4,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    AntSpeech(
+                      text: snapshot.weeklyNote,
+                      animated: snapshot.profile.animationsEnabled,
                     ),
                     const SizedBox(height: 18),
                     AnthillProgressBar(value: snapshot.levelProgress, height: 12),
@@ -133,8 +140,8 @@ class _Content extends ConsumerWidget {
                     AntEnergyBar(energy: snapshot.energy),
                     const SizedBox(height: 8),
                     Text(
-                      'A energia acompanha sua consistência. Ela nunca bloqueia '
-                      'nada no aplicativo.',
+                      'A energia acompanha o mês: gastar além do que entrou cansa, '
+                      'guardar na caixinha alimenta. Ela nunca bloqueia nada.',
                       style: TextStyle(
                         color: palette.muted,
                         fontSize: 11.5,

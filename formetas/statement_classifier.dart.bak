@@ -1,0 +1,135 @@
+import '../../core/utils/brazil_business_calendar.dart';
+import '../entities/import_rule.dart';
+import '../entities/statement_import.dart';
+import '../entities/transaction_entity.dart';
+
+abstract final class StatementClassifier {
+  static const salaryCategory = 'Salário';
+  static const reserveName = 'RDB';
+  static const highIncome = 1000.0;
+  static const salaryBusinessDayLimit = 6;
+
+  static List<StatementEntry> classify(
+    List<StatementEntry> entries, {
+    String? userName,
+    List<ImportRule> rules = const [],
+  }) {
+    final learned = {
+      for (final rule in rules)
+        if (rule.text.isNotEmpty) rule.text: rule,
+    };
+    return [
+      for (final entry in entries) _classify(entry, userName, learned),
+    ];
+  }
+
+  static StatementEntry _classify(
+    StatementEntry entry,
+    String? userName,
+    Map<String, ImportRule> rules,
+  ) {
+    final text = normalize(entry.description);
+    final learned = rules[text];
+    if (learned != null) {
+      return entry.copyWith(
+        role: learned.role,
+        category: learned.category,
+        type: learned.type,
+      );
+    }
+    if (_containsAny(text, const ['pagamento de fatura', 'pagamento fatura'])) {
+      return entry.copyWith(role: StatementRole.ignored);
+    }
+    if (text.contains('estorno')) {
+      return entry.copyWith(role: StatementRole.ignored);
+    }
+    if (text.contains('aplicacao rdb')) {
+      return entry.copyWith(role: StatementRole.toReserve);
+    }
+    if (text.contains('resgate rdb')) {
+      return entry.copyWith(role: StatementRole.fromReserve);
+    }
+    if (_isSalary(entry, text)) {
+      return entry.copyWith(
+        type: TransactionType.income,
+        category: salaryCategory,
+      );
+    }
+    if (_isOwnAccount(text, userName)) {
+      return entry.copyWith(role: StatementRole.ownTransfer);
+    }
+    return entry;
+  }
+
+  static bool _isSalary(StatementEntry entry, String text) {
+    if (entry.type != TransactionType.income) return false;
+    if (_containsAny(text, const ['salario', 'folha de pagamento'])) return true;
+    if (_containsAny(text, const [
+      'resgate',
+      'rdb',
+      'estorno',
+      'rendimento',
+      'dividendo',
+      'provento',
+    ])) {
+      return false;
+    }
+    if (entry.amount < highIncome) return false;
+    final businessDay = BrazilBusinessCalendar.businessDayNumber(entry.date);
+    return businessDay != null && businessDay <= salaryBusinessDayLimit;
+  }
+
+  static bool _isOwnAccount(String text, String? userName) {
+    if (userName == null || userName.trim().isEmpty) return false;
+    if (!text.contains('pix') && !text.contains('transferencia')) return false;
+    final parts = normalize(userName).split(' ').where((part) => part.length >= 3);
+    final tokens = parts.toList();
+    if (tokens.isEmpty) return false;
+    return tokens.every(text.contains);
+  }
+
+  static bool _containsAny(String text, List<String> needles) {
+    return needles.any(text.contains);
+  }
+
+  static String normalize(String value) {
+    const accents = {
+      'á': 'a',
+      'à': 'a',
+      'â': 'a',
+      'ã': 'a',
+      'ä': 'a',
+      'é': 'e',
+      'è': 'e',
+      'ê': 'e',
+      'ë': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'î': 'i',
+      'ï': 'i',
+      'ó': 'o',
+      'ò': 'o',
+      'ô': 'o',
+      'õ': 'o',
+      'ö': 'o',
+      'ú': 'u',
+      'ù': 'u',
+      'û': 'u',
+      'ü': 'u',
+      'ç': 'c',
+    };
+    final buffer = StringBuffer();
+    for (final rune in value.toLowerCase().runes) {
+      final char = String.fromCharCode(rune);
+      final mapped = accents[char];
+      if (mapped != null) {
+        buffer.write(mapped);
+      } else if ((rune >= 48 && rune <= 57) || (rune >= 97 && rune <= 122)) {
+        buffer.writeCharCode(rune);
+      } else {
+        buffer.write(' ');
+      }
+    }
+    return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+}

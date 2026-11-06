@@ -1,5 +1,6 @@
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transfer_entity.dart';
+import 'balance_cutoff.dart';
 import 'date_utils.dart';
 
 class MonthlySummary {
@@ -29,6 +30,7 @@ abstract final class MonthlyBalanceCalculator {
     required DateTime toMonth,
     double initialBalance = 0,
     List<TransferEntity> transfers = const [],
+    DateTime? countFrom,
   }) {
     final summaries = <MonthlySummary>[];
     var runningBalance = initialBalance;
@@ -40,7 +42,9 @@ abstract final class MonthlyBalanceCalculator {
       final monthEnd = AppDateUtils.endOfMonth(current);
 
       final monthTx = transactions.where((t) {
-        return !t.date.isBefore(monthStart) && !t.date.isAfter(monthEnd);
+        return !t.date.isBefore(monthStart) &&
+            !t.date.isAfter(monthEnd) &&
+            BalanceCutoff.counts(t.date, countFrom);
       });
 
       final income = monthTx
@@ -60,7 +64,9 @@ abstract final class MonthlyBalanceCalculator {
           .fold(0.0, (s, t) => s + t.value);
 
       final monthTransfers = transfers.where((t) {
-        return !t.date.isBefore(monthStart) && !t.date.isAfter(monthEnd);
+        return !t.date.isBefore(monthStart) &&
+            !t.date.isAfter(monthEnd) &&
+            BalanceCutoff.counts(t.date, countFrom);
       });
 
       final transferIn = monthTransfers
@@ -72,7 +78,8 @@ abstract final class MonthlyBalanceCalculator {
           .fold(0.0, (s, t) => s + t.amount);
 
       final opening = runningBalance;
-      final closing = opening +
+      final closing =
+          opening +
           openingSeed +
           income -
           expense -
@@ -81,15 +88,17 @@ abstract final class MonthlyBalanceCalculator {
           transferOut;
       final savings = income - expense;
 
-      summaries.add(MonthlySummary(
-        month: current,
-        openingBalance: opening,
-        income: income,
-        expense: expense,
-        investment: investment,
-        closingBalance: closing,
-        savings: savings,
-      ));
+      summaries.add(
+        MonthlySummary(
+          month: current,
+          openingBalance: opening,
+          income: income,
+          expense: expense,
+          investment: investment,
+          closingBalance: closing,
+          savings: savings,
+        ),
+      );
 
       runningBalance = closing;
       current = DateTime(current.year, current.month + 1);

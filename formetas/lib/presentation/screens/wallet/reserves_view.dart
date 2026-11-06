@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/utils/investment_calculator.dart';
 import '../../../core/utils/reserve_calculator.dart';
 import '../../../domain/entities/reserve_entity.dart';
@@ -21,7 +22,9 @@ class ReservesView extends ConsumerWidget {
 
     return reserves.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
+      error: (e, _) => Center(
+        child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+      ),
       data: (list) {
         if (list.isEmpty) {
           return Center(

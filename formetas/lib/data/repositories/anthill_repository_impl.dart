@@ -28,6 +28,24 @@ class AnthillRepositoryImpl implements AnthillRepository {
       _dataSource.updateCelebratedLevel(userId, level);
 
   @override
+  Future<void> updateCelebratedMission(String userId, String missionId) =>
+      _dataSource.updateCelebratedMission(userId, missionId);
+
+  @override
+  Future<void> saveTrail(
+    String userId, {
+    required String category,
+    required DateTime startedOn,
+    required bool celebrated,
+  }) =>
+      _dataSource.saveTrail(
+        userId,
+        category: category,
+        startedOn: startedOn,
+        celebrated: celebrated,
+      );
+
+  @override
   Future<void> initialize(String userId, AntProfileEntity profile) =>
       _dataSource.initialize(userId, profile);
 

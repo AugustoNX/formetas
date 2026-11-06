@@ -98,9 +98,7 @@ class BrapiMarketDataSource {
       throw MarketQuoteException('Resposta inesperada da cotação.');
     }
     if (decoded['error'] == true) {
-      throw MarketQuoteException(
-        decoded['message'] as String? ?? 'Busca indisponível no momento.',
-      );
+      throw MarketQuoteException('Busca indisponível no momento.');
     }
     return decoded;
   }

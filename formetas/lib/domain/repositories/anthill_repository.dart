@@ -14,6 +14,15 @@ abstract class AnthillRepository {
 
   Future<void> updateCelebratedLevel(String userId, int level);
 
+  Future<void> updateCelebratedMission(String userId, String missionId);
+
+  Future<void> saveTrail(
+    String userId, {
+    required String category,
+    required DateTime startedOn,
+    required bool celebrated,
+  });
+
   /// Registra o momento em que cada conquista foi alcançada pela primeira vez.
   Future<void> unlockAchievements(
     String userId,

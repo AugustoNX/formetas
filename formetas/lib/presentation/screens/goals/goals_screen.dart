@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../domain/services/goal_outlook.dart';
 import '../../providers/data_providers.dart';
 
 class GoalsScreen extends ConsumerWidget {
@@ -14,6 +17,9 @@ class GoalsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goals = ref.watch(goalsProvider);
+    final reserves = ref.watch(reservesWithMovementsProvider).valueOrNull ?? const [];
+    final cdiRate = ref.watch(settingsProvider).valueOrNull?.cdiRate ??
+        AppConstants.defaultCdiRate;
 
     return Scaffold(
       appBar: AppBar(
@@ -27,7 +33,9 @@ class GoalsScreen extends ConsumerWidget {
       ),
       body: goals.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(
+          child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+        ),
         data: (list) {
           if (list.isEmpty) {
             return Center(
@@ -62,7 +70,18 @@ class GoalsScreen extends ConsumerWidget {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final goal = list[index];
-              final progress = goal.progressPercent / 100;
+              final reserve = reserves
+                  .where((item) => item.reserve.id == goal.reserveId)
+                  .firstOrNull;
+              final outlook = GoalOutlooks.build(
+                goal: goal,
+                reserve: reserve,
+                cdiRate: cdiRate,
+              );
+              final progress = goal.targetValue <= 0
+                  ? 0.0
+                  : (outlook.current / goal.targetValue).clamp(0.0, 1.0);
+              final completed = outlook.current >= goal.targetValue;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -83,7 +102,7 @@ class GoalsScreen extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
-                                goal.isCompleted
+                                goal.isCompleted || completed
                                     ? Icons.emoji_events_rounded
                                     : Icons.flag_rounded,
                                 color: AppColors.gold,
@@ -112,7 +131,7 @@ class GoalsScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              '${goal.progressPercent.toStringAsFixed(0)}%',
+                              '${(progress * 100).toStringAsFixed(0)}%',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.gold,
@@ -136,7 +155,7 @@ class GoalsScreen extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              CurrencyFormatter.format(goal.currentValue),
+                              CurrencyFormatter.format(outlook.current),
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             Text(
@@ -145,7 +164,14 @@ class GoalsScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        if (goal.isCompleted) ...[
+                        if (outlook.message != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            outlook.message!,
+                            style: TextStyle(color: AppColors.gray, fontSize: 13),
+                          ),
+                        ],
+                        if (completed) ...[
                           const SizedBox(height: 12),
                           Container(
                             width: double.infinity,

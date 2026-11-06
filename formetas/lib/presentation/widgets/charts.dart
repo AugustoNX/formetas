@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -104,7 +105,59 @@ class MonthlyBarChart extends StatelessWidget {
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY: chartMaxY,
-          barTouchData: BarTouchData(enabled: true),
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              fitInsideHorizontally: true,
+              fitInsideVertically: true,
+              maxContentWidth: 200,
+              tooltipRoundedRadius: 10,
+              tooltipPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              getTooltipColor: (_) => AppColors.primary,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                if (groupIndex < 0 || groupIndex >= trend.length) return null;
+                final point = trend[groupIndex];
+                final isIncome = rodIndex == 0;
+                final label = isIncome ? 'Receitas' : 'Despesas';
+                final amount = isIncome ? point.income : point.expense;
+                final month =
+                    '${AppDateUtils.formatMonthShort(point.month)} ${point.month.year}';
+                return BarTooltipItem(
+                  '$month\n',
+                  TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                  textAlign: TextAlign.center,
+                  children: [
+                    TextSpan(
+                      text: '$label\n',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                    TextSpan(
+                      text: CurrencyFormatter.format(amount),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
           titlesData: FlTitlesData(
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
@@ -158,11 +211,15 @@ class BalanceLineChart extends StatelessWidget {
   const BalanceLineChart({
     super.key,
     required this.trend,
-    this.height = 180,
+    this.height = 200,
   });
 
   final List<MonthlyTrendPoint> trend;
   final double height;
+
+  static String _compactAxisValue(double value) {
+    return NumberFormat.compact(locale: 'pt_BR').format(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +257,9 @@ class BalanceLineChart extends StatelessWidget {
         LineChartData(
           minY: minY,
           maxY: maxY,
+          minX: 0,
+          maxX: (trend.length - 1).toDouble(),
+          clipData: const FlClipData.none(),
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
@@ -209,14 +269,139 @@ class BalanceLineChart extends StatelessWidget {
               strokeWidth: 1,
             ),
           ),
-          titlesData: const FlTitlesData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 16,
+                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+              ),
+            ),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                interval: range / 4,
+                getTitlesWidget: (value, _) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _compactAxisValue(value),
+                      style: const TextStyle(fontSize: 10, color: AppColors.gray),
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 28,
+                interval: 1,
+                getTitlesWidget: (value, _) {
+                  final index = value.round();
+                  if (index < 0 || index >= trend.length) {
+                    return const SizedBox.shrink();
+                  }
+                  if ((value - index).abs() > 0.01) {
+                    return const SizedBox.shrink();
+                  }
+                  final dense = trend.length > 8;
+                  if (dense &&
+                      index != 0 &&
+                      index != trend.length - 1 &&
+                      index % 2 != 0) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      AppDateUtils.formatMonthShort(trend[index].month),
+                      style: const TextStyle(fontSize: 10, color: AppColors.gray),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
           borderData: FlBorderData(show: false),
+          lineTouchData: LineTouchData(
+            enabled: true,
+            handleBuiltInTouches: true,
+            touchSpotThreshold: 24,
+            touchTooltipData: LineTouchTooltipData(
+              fitInsideHorizontally: true,
+              fitInsideVertically: true,
+              maxContentWidth: 200,
+              tooltipRoundedRadius: 10,
+              tooltipPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              tooltipMargin: 10,
+              getTooltipColor: (_) => AppColors.primary,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final index = spot.x.round().clamp(0, trend.length - 1);
+                  final point = trend[index];
+                  final monthLabel =
+                      '${AppDateUtils.formatMonthShort(point.month)} ${point.month.year}';
+                  return LineTooltipItem(
+                    monthLabel,
+                    TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      height: 1.25,
+                    ),
+                    textAlign: TextAlign.center,
+                    children: [
+                      TextSpan(
+                        text: '\n${CurrencyFormatter.format(point.balance)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList();
+              },
+            ),
+            getTouchedSpotIndicator: (barData, spotIndexes) {
+              return spotIndexes.map((_) {
+                return TouchedSpotIndicatorData(
+                  const FlLine(
+                    color: AppColors.primary,
+                    strokeWidth: 1.5,
+                  ),
+                  FlDotData(
+                    getDotPainter: (spot, percent, bar, index) =>
+                        FlDotCirclePainter(
+                      radius: 5,
+                      color: AppColors.primary,
+                      strokeWidth: 2,
+                      strokeColor: Colors.white,
+                    ),
+                  ),
+                );
+              }).toList();
+            },
+          ),
           lineBarsData: [
             LineChartBarData(
               spots: spots,
               isCurved: true,
+              preventCurveOverShooting: true,
               color: AppColors.primary,
               barWidth: 3,
+              isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,

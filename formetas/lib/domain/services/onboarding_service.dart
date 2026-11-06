@@ -3,6 +3,7 @@ import '../entities/settings_entity.dart';
 import '../repositories/reserve_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../repositories/user_repository.dart';
+import '../../core/utils/balance_cutoff.dart';
 import 'onboarding_planner.dart';
 
 typedef IdFactory = String Function();
@@ -13,9 +14,9 @@ class OnboardingService {
     required ReserveRepository reserveRepository,
     required UserRepository userRepository,
     required this.nextId,
-  })  : _transactions = transactionRepository,
-        _reserves = reserveRepository,
-        _users = userRepository;
+  }) : _transactions = transactionRepository,
+       _reserves = reserveRepository,
+       _users = userRepository;
 
   final TransactionRepository _transactions;
   final ReserveRepository _reserves;
@@ -29,12 +30,14 @@ class OnboardingService {
     DateTime? at,
   }) async {
     final now = at ?? DateTime.now();
+    final day = BalanceCutoff.day(now);
+    final dated = settings.copyWith(balanceAsOf: day);
 
     final opening = OnboardingPlanner.openingTransaction(
       id: nextId(),
       userId: userId,
       availableBalance: draft.availableBalance,
-      at: now,
+      at: day,
     );
     if (opening != null) {
       await _transactions.createTransaction(opening);
@@ -43,7 +46,7 @@ class OnboardingService {
     final reserves = OnboardingPlanner.reserves(
       userId: userId,
       draft: draft,
-      at: now,
+      at: day,
       cdiRate: settings.cdiRate,
       nextId: nextId,
     );
@@ -51,7 +54,7 @@ class OnboardingService {
       await _reserves.createReserve(reserve);
     }
 
-    await markCompleted(userId: userId, settings: settings);
+    await markCompleted(userId: userId, settings: dated);
   }
 
   Future<void> markCompleted({

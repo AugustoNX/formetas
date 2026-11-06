@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import '../entities/statement_import.dart';
 import '../entities/transaction_entity.dart';
+import '../entities/transfer_entity.dart';
+import 'statement_text.dart';
 
 abstract final class StatementParser {
   static String decode(List<int> bytes) {
@@ -106,10 +108,17 @@ abstract final class StatementParser {
 
   static List<StatementEntry> markDuplicates(
     List<StatementEntry> entries,
-    List<TransactionEntity> existing,
-  ) {
+    List<TransactionEntity> existing, {
+    List<TransferEntity> transfers = const [],
+  }) {
     final seen = _DuplicateIndex.from(existing);
-    return [for (final entry in entries) seen.take(entry)];
+    final reserves = _ReserveDuplicateIndex.from(transfers);
+    return [
+      for (final entry in entries)
+        entry.role == StatementRole.transaction
+            ? seen.take(entry)
+            : reserves.take(entry),
+    ];
   }
 }
 
@@ -328,8 +337,8 @@ List<String> _align(List<String> cells, _Header header, String delimiter) {
 
 String _description(List<String> cells, _Header header) {
   final primary = _clean(_cell(cells, header.description));
-  if (primary.isNotEmpty) return primary;
-  return _clean(_cell(cells, header.narrative));
+  if (primary.isNotEmpty) return StatementText.shorten(primary);
+  return StatementText.shorten(_clean(_cell(cells, header.narrative)));
 }
 
 double? _signedAmount(List<String> cells, _Header header) {
@@ -589,7 +598,7 @@ class _DuplicateIndex {
       description: entry.description,
     );
     if (!duplicate) return entry;
-    return entry.copyWith(duplicate: true, included: false);
+    return entry.copyWith(duplicate: true);
   }
 
   void _remember({
@@ -621,4 +630,64 @@ String _movementKey(
       '${date.day.toString().padLeft(2, '0')}';
   final cents = (amount.abs() * 100).round();
   return '$day|${type.name}|$cents|${_clean(description).toLowerCase()}';
+}
+
+class _ReserveDuplicateIndex {
+  _ReserveDuplicateIndex.from(List<TransferEntity> transfers)
+      : ids = <String>{},
+        unidentified = <String>{},
+        identified = <String>{} {
+    for (final transfer in transfers) {
+      final role = _transferRole(transfer);
+      if (role == null) continue;
+      unidentified.add(
+        _reserveKey(role, transfer.date, transfer.amount, transfer.description ?? ''),
+      );
+    }
+  }
+
+  final Set<String> ids;
+  final Set<String> unidentified;
+  final Set<String> identified;
+
+  StatementEntry take(StatementEntry entry) {
+    final sourceId = _blankToNull(entry.sourceId?.trim() ?? '');
+    final key = _reserveKey(entry.role, entry.date, entry.amount, entry.description);
+    final duplicate = sourceId != null
+        ? ids.contains(sourceId) || unidentified.contains(key)
+        : unidentified.contains(key) || identified.contains(key);
+    if (sourceId != null) {
+      ids.add(sourceId);
+      identified.add(key);
+    } else {
+      unidentified.add(key);
+    }
+    if (!duplicate) return entry;
+    return entry.copyWith(duplicate: true);
+  }
+}
+
+StatementRole? _transferRole(TransferEntity transfer) {
+  if (transfer.fromType == WalletType.balance &&
+      transfer.toType == WalletType.reserve) {
+    return StatementRole.toReserve;
+  }
+  if (transfer.fromType == WalletType.reserve &&
+      transfer.toType == WalletType.balance) {
+    return StatementRole.fromReserve;
+  }
+  return null;
+}
+
+String _reserveKey(
+  StatementRole role,
+  DateTime date,
+  double amount,
+  String description,
+) {
+  final day = '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+  final cents = (amount.abs() * 100).round();
+  return '${role.name}|$day|$cents|${_clean(description).toLowerCase()}';
 }

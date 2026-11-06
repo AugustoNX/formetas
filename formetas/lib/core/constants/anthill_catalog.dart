@@ -3,7 +3,7 @@ import '../../domain/entities/anthill_snapshot.dart';
 /// Configuração da experiência gamificada.
 ///
 /// Tudo aqui é ajustável sem tocar em nenhuma regra financeira: níveis,
-/// conquistas, missões e os parâmetros do inverno.
+/// conquistas e os parâmetros do inverno.
 abstract final class AnthillCatalog {
   /// Quantos meses de despesa média o formigueiro precisa guardar para
   /// atravessar o inverno tranquilo.
@@ -223,6 +223,17 @@ abstract final class AnthillCatalog {
       target: _fifty,
     ),
     AchievementDefinition(
+      id: 'chegou_ao_inverno',
+      title: 'Chegou ao Inverno',
+      description:
+          'Quando o inverno chegou, a despensa cobria o gasto da estação.',
+      lockedHint: 'No inverno, cubra 6 meses de gasto.',
+      icon: AntIcon.snowflake,
+      unit: AnthillUnit.count,
+      value: _winterArrival,
+      target: _one,
+    ),
+    AchievementDefinition(
       id: 'preparado_para_o_inverno',
       title: 'Preparada para o Inverno',
       description: 'Seu formigueiro está pronto para a estação fria.',
@@ -254,54 +265,6 @@ abstract final class AnthillCatalog {
     ),
   ];
 
-  /// Missões do mês, recalculadas a partir dos dados reais.
-  static const List<MissionDefinition> missions = [
-    MissionDefinition(
-      id: 'guardar_no_mes',
-      title: 'Levar folhinhas ao armazém',
-      description: 'Transfira parte do saldo para uma caixinha ou investimento.',
-      icon: AntIcon.storage,
-      unit: AnthillUnit.currency,
-      value: _storedThisMonth,
-      target: _monthlyStorageTarget,
-    ),
-    MissionDefinition(
-      id: 'fechar_mes_positivo',
-      title: 'Fechar o mês economizando',
-      description: 'Termine o mês com mais folhinhas do que começou.',
-      icon: AntIcon.leaf,
-      unit: AnthillUnit.currency,
-      value: _savedThisMonth,
-      target: _monthlySavingTarget,
-    ),
-    MissionDefinition(
-      id: 'registrar_movimentacoes',
-      title: 'Anotar a trilha do mês',
-      description: 'Registre 5 movimentações para acompanhar seu formigueiro.',
-      icon: AntIcon.ant,
-      unit: AnthillUnit.count,
-      value: _transactionsThisMonth,
-      target: _five,
-    ),
-    MissionDefinition(
-      id: 'manter_armazem',
-      title: 'Manter um armazém ativo',
-      description: 'Uma caixinha guardando folhinhas para o inverno.',
-      icon: AntIcon.snowflake,
-      unit: AnthillUnit.count,
-      value: _reserveCount,
-      target: _one,
-    ),
-    MissionDefinition(
-      id: 'objetivo_em_andamento',
-      title: 'Ter um objetivo em andamento',
-      description: 'Uma meta dá direção para as folhinhas do formigueiro.',
-      icon: AntIcon.target,
-      unit: AnthillUnit.count,
-      value: _goalCount,
-      target: _one,
-    ),
-  ];
 }
 
 // As funções abaixo existem apenas para permitir catálogos `const`.
@@ -321,8 +284,6 @@ double _investments(AnthillFacts f) => f.investments;
 double _totalYield(AnthillFacts f) => f.totalYield;
 double _collectedAllTime(AnthillFacts f) => f.collectedAllTime;
 double _transactionCount(AnthillFacts f) => f.transactionCount.toDouble();
-double _transactionsThisMonth(AnthillFacts f) =>
-    f.transactionsThisMonth.toDouble();
 double _reserveCount(AnthillFacts f) => f.reserveCount.toDouble();
 double _investmentCount(AnthillFacts f) => f.investmentCount.toDouble();
 double _goalCount(AnthillFacts f) => f.goalCount.toDouble();
@@ -331,20 +292,4 @@ double _monthsWithSavings(AnthillFacts f) => f.monthsWithSavings.toDouble();
 double _savingStreak(AnthillFacts f) => f.savingStreak.toDouble();
 double _storedEver(AnthillFacts f) => f.hasStoredEver ? 1 : 0;
 double _winterReadiness(AnthillFacts f) => f.winterReadiness;
-double _storedThisMonth(AnthillFacts f) => f.storedThisMonth;
-double _savedThisMonth(AnthillFacts f) => f.savedThisMonth;
-
-/// Alvo mensal de folhinhas guardadas: 10% da despesa média, com piso de R$ 100.
-double _monthlyStorageTarget(AnthillFacts f) {
-  final suggested = f.averageMonthlyExpense * 0.1;
-  return suggested < 100 ? 100 : _roundToNearest(suggested, 50);
-}
-
-/// Alvo mensal de economia: 5% da despesa média, com piso de R$ 50.
-double _monthlySavingTarget(AnthillFacts f) {
-  final suggested = f.averageMonthlyExpense * 0.05;
-  return suggested < 50 ? 50 : _roundToNearest(suggested, 50);
-}
-
-double _roundToNearest(double value, double step) =>
-    (value / step).roundToDouble() * step;
+double _winterArrival(AnthillFacts f) => f.winterArrival ? 1 : 0;

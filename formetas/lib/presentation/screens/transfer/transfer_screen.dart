@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/utils/balance_cutoff.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../domain/entities/investment_entity.dart';
@@ -82,17 +83,22 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       final amount = CurrencyFormatter.parse(_valueController.text) ?? 0;
       final transactions = ref.read(transactionsProvider).valueOrNull ?? [];
       final transfers = ref.read(transfersProvider).valueOrNull ?? [];
-      final reserves = ref.read(reservesWithMovementsProvider).valueOrNull ?? [];
+      final reserves =
+          ref.read(reservesWithMovementsProvider).valueOrNull ?? [];
       final investments = ref.read(investmentsProvider).valueOrNull ?? [];
       final settings = ref.read(settingsProvider).valueOrNull;
       final cdiRate = settings?.cdiRate ?? AppConstants.defaultCdiRate;
 
       var toId = _toId;
       if (_toType == WalletType.investment && (toId == null || toId.isEmpty)) {
-        toId = await ref.read(transferServiceProvider).ensureDefaultInvestment(user.id);
+        toId = await ref
+            .read(transferServiceProvider)
+            .ensureDefaultInvestment(user.id);
       }
 
-      await ref.read(transferServiceProvider).execute(
+      await ref
+          .read(transferServiceProvider)
+          .execute(
             userId: user.id,
             fromType: _fromType,
             toType: _toType,
@@ -108,13 +114,17 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
             reserves: reserves,
             investments: investments,
             cdiRate: cdiRate,
+            countFrom: BalanceCutoff.resolve(
+              saved: settings?.balanceAsOf,
+              transactions: transactions,
+            ),
           );
 
       if (mounted) {
         // Guardar folhinhas é sair do saldo rumo a um armazém ou aos
         // investimentos; o caminho de volta mantém a mensagem neutra.
-        final isStoring = _fromType == WalletType.balance &&
-            _toType != WalletType.balance;
+        final isStoring =
+            _fromType == WalletType.balance && _toType != WalletType.balance;
         final gamified = isStoring ? AnthillFeedback.stored(ref, amount) : null;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +138,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     } on TransferException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     } finally {
@@ -146,6 +159,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     final cdiRate = settings?.cdiRate ?? AppConstants.defaultCdiRate;
     final transferService = ref.read(transferServiceProvider);
 
+    final countFrom = BalanceCutoff.resolve(
+      saved: settings?.balanceAsOf,
+      transactions: transactions,
+    );
     final availableFrom = transferService.availableFrom(
       fromType: _fromType,
       fromId: _fromId,
@@ -154,6 +171,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       reserves: reserves,
       investments: investments,
       cdiRate: cdiRate,
+      countFrom: countFrom,
     );
 
     return Scaffold(
@@ -171,7 +189,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                  const Icon(
+                    Icons.info_outline,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -320,35 +342,39 @@ class _WalletSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final options = <_WalletOption>[
-      if (!(excludeType == WalletType.balance))
-        const _WalletOption(type: WalletType.balance, label: 'Saldo disponível'),
-      ...reserves.map(
-        (r) => _WalletOption(
-          type: WalletType.reserve,
-          id: r.reserve.id,
-          label: r.reserve.name,
-        ),
-      ),
-      if (investments.isEmpty)
-        const _WalletOption(
-          type: WalletType.investment,
-          label: TransferService.defaultInvestmentName,
-        )
-      else
-        ...investments.map(
-          (i) => _WalletOption(
-            type: WalletType.investment,
-            id: i.id,
-            label: i.name,
+    final options =
+        <_WalletOption>[
+          if (!(excludeType == WalletType.balance))
+            const _WalletOption(
+              type: WalletType.balance,
+              label: 'Saldo disponível',
+            ),
+          ...reserves.map(
+            (r) => _WalletOption(
+              type: WalletType.reserve,
+              id: r.reserve.id,
+              label: r.reserve.name,
+            ),
           ),
-        ),
-    ].where((o) {
-      if (excludeType == null) return true;
-      if (o.type != excludeType) return true;
-      if (o.type == WalletType.balance) return false;
-      return o.id != excludeId;
-    }).toList();
+          if (investments.isEmpty)
+            const _WalletOption(
+              type: WalletType.investment,
+              label: TransferService.defaultInvestmentName,
+            )
+          else
+            ...investments.map(
+              (i) => _WalletOption(
+                type: WalletType.investment,
+                id: i.id,
+                label: i.name,
+              ),
+            ),
+        ].where((o) {
+          if (excludeType == null) return true;
+          if (o.type != excludeType) return true;
+          if (o.type == WalletType.balance) return false;
+          return o.id != excludeId;
+        }).toList();
 
     return Wrap(
       spacing: 8,
@@ -368,11 +394,7 @@ class _WalletSelector extends StatelessWidget {
 }
 
 class _WalletOption {
-  const _WalletOption({
-    required this.type,
-    required this.label,
-    this.id,
-  });
+  const _WalletOption({required this.type, required this.label, this.id});
 
   final WalletType type;
   final String? id;

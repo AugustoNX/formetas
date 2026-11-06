@@ -8,6 +8,7 @@ import '../../../core/errors/failures.dart';
 import '../../providers/auth_controller.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/ant_brain_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -27,9 +28,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.expense,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
             child: const Text('Sair'),
           ),
         ],
@@ -59,9 +58,9 @@ class ProfileScreen extends ConsumerWidget {
     try {
       await ref.read(authControllerProvider.notifier).updateName(trimmed);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nome atualizado.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Nome atualizado.')));
       }
     } on AuthFailure catch (e) {
       if (context.mounted) {
@@ -119,9 +118,7 @@ class ProfileScreen extends ConsumerWidget {
                             (user?.name.isNotEmpty == true)
                                 ? user!.name
                                 : 'Adicionar nome',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                             maxLines: 2,
@@ -138,7 +135,10 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                Text(user?.email ?? '', style: TextStyle(color: AppColors.gray)),
+                Text(
+                  user?.email ?? '',
+                  style: TextStyle(color: AppColors.gray),
+                ),
               ],
             ),
           ),
@@ -166,6 +166,8 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+          const AntBrainSection(),
+          const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.settings_outlined),
             title: const Text('Configurações'),
@@ -203,8 +205,9 @@ class _EditNameDialog extends StatefulWidget {
 }
 
 class _EditNameDialogState extends State<_EditNameDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialName);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
 
   @override
   void dispose() {
@@ -235,10 +238,7 @@ class _EditNameDialogState extends State<_EditNameDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Salvar'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Salvar')),
       ],
     );
   }

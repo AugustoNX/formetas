@@ -7,11 +7,20 @@ class AntProfileModel extends AntProfileEntity {
     super.animationsEnabled,
     super.celebratedLevel,
     super.createdAt,
+    super.trailCategory,
+    super.trailStartedOn,
+    super.trailCelebrated,
+    super.celebratedMissionId,
   });
 
   factory AntProfileModel.fromMap(Map<String, dynamic> map) {
     final name = (map['nomeFormiga'] ?? map['antName'])?.toString().trim();
     final level = map['nivelCelebrado'] ?? map['celebratedLevel'];
+    final trail = (map['trilhaCategoria'] ?? map['trailCategory'])
+        ?.toString()
+        .trim();
+    final mission =
+        (map['missaoCelebrada'] ?? map['celebratedMissionId'])?.toString();
 
     return AntProfileModel(
       antName: name == null || name.isEmpty
@@ -23,6 +32,12 @@ class AntProfileModel extends AntProfileEntity {
           map['animacoes'] as bool? ?? map['animationsEnabled'] as bool? ?? true,
       celebratedLevel: level is num ? level.toInt() : 0,
       createdAt: _parseDate(map['criadoEm'] ?? map['createdAt']),
+      trailCategory: trail == null || trail.isEmpty ? null : trail,
+      trailStartedOn: _parseDate(map['trilhaInicio'] ?? map['trailStartedOn']),
+      trailCelebrated: map['trilhaCelebrada'] == true ||
+          map['trailCelebrated'] == true,
+      celebratedMissionId:
+          mission == null || mission.isEmpty ? null : mission,
     );
   }
 
@@ -33,6 +48,10 @@ class AntProfileModel extends AntProfileEntity {
       animationsEnabled: entity.animationsEnabled,
       celebratedLevel: entity.celebratedLevel,
       createdAt: entity.createdAt,
+      trailCategory: entity.trailCategory,
+      trailStartedOn: entity.trailStartedOn,
+      trailCelebrated: entity.trailCelebrated,
+      celebratedMissionId: entity.celebratedMissionId,
     );
   }
 
@@ -42,6 +61,11 @@ class AntProfileModel extends AntProfileEntity {
       'animacoes': animationsEnabled,
       'nivelCelebrado': celebratedLevel,
       'criadoEm': (createdAt ?? DateTime.now()).toIso8601String(),
+      if (trailCategory != null) 'trilhaCategoria': trailCategory,
+      if (trailStartedOn != null)
+        'trilhaInicio': trailStartedOn!.toIso8601String(),
+      if (trailCategory != null) 'trilhaCelebrada': trailCelebrated,
+      if (celebratedMissionId != null) 'missaoCelebrada': celebratedMissionId,
       'conquistas': {
         for (final entry in unlockedAchievements.entries)
           entry.key: entry.value.toIso8601String(),

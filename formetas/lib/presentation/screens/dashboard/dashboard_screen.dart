@@ -15,6 +15,7 @@ import '../../widgets/anthill/anthill_entry_banner.dart';
 import '../../widgets/balance_card.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/formetas_card.dart';
+import '../../widgets/insights/insights_preview_card.dart';
 import '../../widgets/movement_tile.dart';
 import '../../widgets/transaction_tile.dart';
 
@@ -108,6 +109,8 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                         const AnthillEntryBanner(),
+                        const SizedBox(height: 12),
+                        const InsightsPreviewCard(),
                         const SizedBox(height: 20),
                         _MonthSelector(
                           selectedMonth: selectedMonth,

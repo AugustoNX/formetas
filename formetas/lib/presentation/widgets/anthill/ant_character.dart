@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../domain/entities/anthill_snapshot.dart';
 import 'anthill_palette.dart';
 
 /// A formiga do usuário, desenhada em código.
@@ -15,14 +16,17 @@ class AntCharacter extends StatefulWidget {
     required this.level,
     this.size = 140,
     this.animated = true,
+    this.mood = AntMood.calm,
     this.carryingLeaf,
   });
 
   final int level;
   final double size;
   final bool animated;
+  final AntMood mood;
 
-  /// Por padrão a formiga carrega uma folhinha a partir do nível 2.
+  /// Por padrão a formiga carrega uma folhinha quando está alimentada
+  /// ou, calma, a partir do nível 2.
   final bool? carryingLeaf;
 
   @override
@@ -33,8 +37,15 @@ class _AntCharacterState extends State<AntCharacter>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2600),
+    duration: _pace(widget.mood),
   );
+
+  Duration _pace(AntMood mood) => switch (mood) {
+        AntMood.tired => const Duration(milliseconds: 3400),
+        AntMood.asleep => const Duration(milliseconds: 4600),
+        AntMood.fed => const Duration(milliseconds: 1700),
+        AntMood.calm => const Duration(milliseconds: 2600),
+      };
 
   @override
   void initState() {
@@ -45,6 +56,9 @@ class _AntCharacterState extends State<AntCharacter>
   @override
   void didUpdateWidget(covariant AntCharacter oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.mood != widget.mood) {
+      _controller.duration = _pace(widget.mood);
+    }
     if (widget.animated && !_controller.isAnimating) {
       _controller.repeat();
     } else if (!widget.animated && _controller.isAnimating) {
@@ -74,7 +88,13 @@ class _AntCharacterState extends State<AntCharacter>
               level: widget.level,
               palette: palette,
               phase: _controller.value,
-              carryingLeaf: widget.carryingLeaf ?? widget.level >= 2,
+              mood: widget.mood,
+              carryingLeaf: widget.carryingLeaf ??
+                  switch (widget.mood) {
+                    AntMood.fed => true,
+                    AntMood.calm => widget.level >= 2,
+                    AntMood.tired || AntMood.asleep => false,
+                  },
             ),
           );
         },
@@ -88,6 +108,7 @@ class AntPainter extends CustomPainter {
     required this.level,
     required this.palette,
     required this.phase,
+    required this.mood,
     required this.carryingLeaf,
   });
 
@@ -97,6 +118,7 @@ class AntPainter extends CustomPainter {
   final int level;
   final AnthillPalette palette;
   final double phase;
+  final AntMood mood;
   final bool carryingLeaf;
 
   @override
@@ -110,14 +132,21 @@ class AntPainter extends CustomPainter {
     canvas.scale(scale);
 
     final wave = math.sin(phase * 2 * math.pi);
-    canvas.translate(0, wave * 1.2);
+    final bob = switch (mood) {
+      AntMood.tired => wave * 0.35,
+      AntMood.asleep => wave * 0.1,
+      AntMood.fed => wave * 1.5,
+      AntMood.calm => wave,
+    };
+    canvas.translate(0, bob * 1.2);
 
     _paintGlow(canvas);
-    _paintLegs(canvas, wave);
-    if (carryingLeaf) _paintCarriedLeaf(canvas, wave);
+    _paintLegs(canvas, bob);
+    if (carryingLeaf) _paintCarriedLeaf(canvas, bob);
     _paintBody(canvas);
-    _paintAntennae(canvas, wave);
+    _paintAntennae(canvas, bob);
     _paintFace(canvas);
+    if (mood == AntMood.asleep) _paintSleep(canvas, bob);
     _paintAccessories(canvas);
 
     canvas.restore();
@@ -238,6 +267,15 @@ class AntPainter extends CustomPainter {
   }
 
   void _paintFace(Canvas canvas) {
+    if (mood == AntMood.asleep) {
+      _paintClosedEyes(canvas);
+      return;
+    }
+    if (mood == AntMood.tired) {
+      _paintTiredFace(canvas);
+      return;
+    }
+
     final eyeWhite = Paint()..color = Colors.white;
     final pupil = Paint()..color = palette.outline;
 
@@ -266,7 +304,7 @@ class AntPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    if (level >= 3) {
+    if (level >= 3 || mood == AntMood.fed) {
       final blush = Paint()..color = const Color(0xFFE8836B).withValues(alpha: 0.35);
       canvas.drawOval(
         Rect.fromCenter(center: const Offset(71, 51), width: 8, height: 5),
@@ -277,6 +315,55 @@ class AntPainter extends CustomPainter {
         blush,
       );
     }
+  }
+
+  void _paintClosedEyes(Canvas canvas) {
+    final paint = Paint()
+      ..color = palette.outline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCenter(center: const Offset(76, 45), width: 8, height: 6),
+      0.2,
+      math.pi - 0.4,
+      false,
+      paint,
+    );
+    canvas.drawArc(
+      Rect.fromCenter(center: const Offset(86, 45), width: 7, height: 5.5),
+      0.2,
+      math.pi - 0.4,
+      false,
+      paint,
+    );
+  }
+
+  void _paintTiredFace(Canvas canvas) {
+    final paint = Paint()
+      ..color = palette.outline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(73, 45), const Offset(80, 45), paint);
+    canvas.drawLine(const Offset(83, 45), const Offset(89, 45), paint);
+    canvas.drawLine(const Offset(78, 52), const Offset(86, 52), paint);
+  }
+
+  void _paintSleep(Canvas canvas, double wave) {
+    final paint = Paint()
+      ..color = palette.leaf
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(96, 24 + wave)
+        ..lineTo(102, 24 + wave)
+        ..lineTo(96, 30 + wave)
+        ..lineTo(102, 30 + wave),
+      paint,
+    );
   }
 
   void _paintCarriedLeaf(Canvas canvas, double wave) {
@@ -393,6 +480,7 @@ class AntPainter extends CustomPainter {
   bool shouldRepaint(covariant AntPainter oldDelegate) {
     return oldDelegate.level != level ||
         oldDelegate.phase != phase ||
+        oldDelegate.mood != mood ||
         oldDelegate.carryingLeaf != carryingLeaf ||
         oldDelegate.palette.isDark != palette.isDark;
   }

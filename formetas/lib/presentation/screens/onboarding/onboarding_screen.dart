@@ -69,10 +69,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _markComplete(SettingsEntity settings) async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    await ref.read(onboardingServiceProvider).markCompleted(
-          userId: user.id,
-          settings: settings,
-        );
+    await ref
+        .read(onboardingServiceProvider)
+        .markCompleted(userId: user.id, settings: settings);
     await ref
         .read(settingsLocalDataSourceProvider)
         .setOnboardingComplete(user.id);
@@ -90,7 +89,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await _leaveToHome();
   }
 
-  Future<void> _finish({bool seed = true}) async {
+  Future<void> _finish() async {
     if (_saving) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -105,22 +104,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       return;
     }
 
+    if (_balanceController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Informe quanto tem na conta. Se estiver zerada, digite 0.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final settings =
           ref.read(settingsProvider).valueOrNull ?? const SettingsEntity();
-      if (seed) {
-        await ref.read(onboardingServiceProvider).complete(
-              userId: user.id,
-              draft: _draft,
-              settings: settings,
-            );
-      } else {
-        await ref.read(onboardingServiceProvider).markCompleted(
-              userId: user.id,
-              settings: settings,
-            );
-      }
+      await ref
+          .read(onboardingServiceProvider)
+          .complete(userId: user.id, draft: _draft, settings: settings);
       await ref
           .read(settingsLocalDataSourceProvider)
           .setOnboardingComplete(user.id);
@@ -129,13 +130,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível salvar a configuração. Tente de novo.'),
+          content: Text(
+            'Não foi possível salvar a configuração. Tente de novo.',
+          ),
           backgroundColor: AppColors.expense,
         ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _continueFromBalance() {
+    if (_balanceController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Informe quanto tem na conta. Se estiver zerada, digite 0.',
+          ),
+        ),
+      );
+      return;
+    }
+    _goTo(2);
   }
 
   void _addCaixinha() {
@@ -156,12 +173,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final reserves = ref.watch(reservesWithMovementsProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final pending = settings.isLoading ||
+    final pending =
+        settings.isLoading ||
         (transactions.isLoading && !transactions.hasValue) ||
         (reserves.isLoading && !reserves.hasValue);
 
@@ -173,7 +189,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
 
     final currentSettings = settings.valueOrNull ?? const SettingsEntity();
-    final hasHistory = (transactions.valueOrNull?.isNotEmpty ?? false) ||
+    final hasHistory =
+        (transactions.valueOrNull?.isNotEmpty ?? false) ||
         (reserves.valueOrNull?.isNotEmpty ?? false);
 
     if (!_leaving && (currentSettings.onboardingCompleted || hasHistory)) {
@@ -205,13 +222,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const Spacer(),
                   _Dots(index: _page),
                   const Spacer(),
-                  if (_page == 0)
-                    TextButton(
-                      onPressed: _saving ? null : () => _finish(seed: false),
-                      child: const Text('Começar do zero'),
-                    )
-                  else
-                    const SizedBox(width: 48),
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
@@ -225,7 +236,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   _BalancePage(
                     controller: _balanceController,
                     onChanged: () => setState(() {}),
-                    onContinue: () => _goTo(2),
+                    onContinue: _continueFromBalance,
                   ),
                   _ReservesPage(
                     items: _caixinhas,
@@ -248,8 +259,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 class _CaixinhaDraft {
   _CaixinhaDraft()
-      : nameController = TextEditingController(),
-        amountController = TextEditingController();
+    : nameController = TextEditingController(),
+      amountController = TextEditingController();
 
   final TextEditingController nameController;
   final TextEditingController amountController;
@@ -305,17 +316,17 @@ class _IntroPage extends StatelessWidget {
             child: ListView(
               children: [
                 const SizedBox(height: 12),
-                const Center(child: AppLogo(size: 96, showShadow: true))
-                    .animate()
-                    .scale(duration: 500.ms, curve: Curves.easeOutBack),
+                const Center(
+                  child: AppLogo(size: 96, showShadow: true),
+                ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
                 const SizedBox(height: 28),
                 Text(
                   'Bem-vindo ao ${AppStrings.appName}',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -447,9 +458,9 @@ class _BalancePage extends StatelessWidget {
                 Text(
                   'Quanto você tem disponível hoje?',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -460,13 +471,14 @@ class _BalancePage extends StatelessWidget {
                 TextField(
                   controller: controller,
                   autofocus: true,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: CurrencyFormatter.inputFormatters,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Saldo disponível',
                     prefixText: 'R\$ ',
@@ -483,8 +495,8 @@ class _BalancePage extends StatelessWidget {
                   ),
                   child: Text(
                     value <= 0
-                        ? 'Pode deixar zero se a conta está zerada. O app passa a contar a partir de hoje.'
-                        : 'Esse valor vira seu saldo disponível. Não entra como receita do mês.',
+                        ? 'Digite 0 se a conta está zerada. Esse dia fica gravado: o que for anterior entra no histórico e não mexe no saldo.'
+                        : 'Esse valor é o saldo de hoje e não entra como receita. Lançamentos anteriores a este dia ficam no histórico.',
                     style: TextStyle(color: AppColors.primary, height: 1.35),
                   ),
                 ),
@@ -539,13 +551,13 @@ class _ReservesPage extends StatelessWidget {
                 Text(
                   'Você tem caixinhas?',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Se já tem dinheiro separado (emergência, viagem, reserva), cadastre o valor de hoje. Ele não sai do saldo disponível.',
+                  'Se já tem dinheiro separado (emergência, viagem, reserva), cadastre o valor de hoje. Depósitos e saques anteriores a este dia não mudam esse valor.',
                   style: TextStyle(color: AppColors.gray, height: 1.4),
                 ),
                 const SizedBox(height: 20),

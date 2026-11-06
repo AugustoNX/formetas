@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../domain/entities/movement_entry.dart';
 import '../../../domain/entities/transaction_entity.dart';
@@ -152,7 +153,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen>
           Expanded(
             child: movements.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (e, _) => Center(
+                child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+              ),
               data: (list) {
                 final filtered = _applyFilters(list);
 

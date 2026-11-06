@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../domain/entities/investment_entity.dart';
 import '../../../domain/entities/market_quote.dart';
 import '../../../domain/repositories/market_quote_repository.dart';
@@ -77,7 +78,9 @@ class _InvestmentsViewState extends ConsumerState<InvestmentsView> {
       skipLoadingOnReload: true,
       skipLoadingOnRefresh: true,
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
+      error: (e, _) => Center(
+        child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+      ),
       data: (summary) {
         final legacy = investments.valueOrNull ?? const <InvestmentEntity>[];
 

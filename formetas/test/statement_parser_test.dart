@@ -21,7 +21,7 @@ Data,Valor,Identificador,Descrição
     expect(result.entries[0].line, 2);
     expect(result.entries[0].type, TransactionType.income);
     expect(result.entries[0].amount, closeTo(3645.42, 0.001));
-    expect(result.entries[0].description, 'Transferência Recebida - Fulano');
+    expect(result.entries[0].description, 'Transferência - Fulano');
     expect(result.entries[0].sourceId, 'id-1');
 
     expect(result.entries[1].type, TransactionType.expense);
@@ -150,7 +150,7 @@ Data,Valor,Identificador,Descrição
       type: TransactionType.income,
       category: 'Outros',
       value: 21,
-      description: 'Transferência Recebida - João Heitor',
+      description: 'Transferência - João Heitor',
       date: DateTime(2026, 9, 13),
       createdAt: DateTime(2026, 9, 13),
     );
@@ -166,7 +166,7 @@ Data,Valor,Identificador,Descrição
     expect(rows[0].duplicate, isFalse);
     expect(rows[0].included, isTrue);
     expect(rows[1].duplicate, isTrue);
-    expect(rows[1].included, isFalse);
+    expect(rows[1].included, isTrue);
     expect(rows[2].duplicate, isTrue);
     expect(rows[3].included, isTrue);
     expect(rows[4].duplicate, isTrue);
@@ -190,11 +190,24 @@ Data,Valor,Identificador,Descrição
 
     final built = StatementImporter.build(
       userId: 'u1',
-      entries: [rows[0], rows[1], rows[5]],
+      entries: [rows[0], rows[1].copyWith(included: false), rows[5]],
       nextId: () => 'new',
     );
     expect(built, hasLength(2));
     expect(built.first.sourceId, '6aa73c5c');
     expect(built.last.type, TransactionType.expense);
+  });
+
+  test('pix do banco fica só com a pessoa ou a empresa', () {
+    final result = StatementParser.parse('''
+Data,Valor,Descrição
+13/09/2026,25.00,Transferência recebida pelo Pix - ENISLEY JULIANA NEGRI XAVIER - •••.977.919-•• - ITAÚ UNIBANCO S.A. (0341) Agência: 3739 Conta: 10451-5
+13/09/2026,-69.46,Transferência enviada pelo Pix - MAREE INSTITUICAO DE PAGAMENTO LTDA - 38.372.267/0001-82 - BCO SANTANDER (BRASIL) S.A. (0033) Agência: 3689 Conta: 13023089-6
+02/09/2026,-80.00,Compra no débito - FARMACIA UNIPREV
+''');
+
+    expect(result.entries[0].description, 'Pix - ENISLEY JULIANA NEGRI XAVIER');
+    expect(result.entries[1].description, 'Pix - MAREE INSTITUICAO DE PAGAMENTO LTDA');
+    expect(result.entries[2].description, 'Compra no débito - FARMACIA UNIPREV');
   });
 }

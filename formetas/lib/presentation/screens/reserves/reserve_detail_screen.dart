@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/investment_calculator.dart';
 import '../../../core/utils/reserve_calculator.dart';
@@ -34,7 +35,9 @@ class ReserveDetailScreen extends ConsumerWidget {
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('Erro: $e')),
+        body: Center(
+          child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+        ),
       ),
       data: (list) {
         final item = list.where((r) => r.reserve.id == reserveId).firstOrNull;

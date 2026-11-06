@@ -60,6 +60,7 @@ void main() {
     List<InvestmentEntity> investments = const [],
     List<GoalEntity> goals = const [],
     AntProfileEntity profile = const AntProfileEntity(),
+    DateTime? referenceDate,
   }) {
     return service.buildSnapshot(
       profile: profile,
@@ -69,7 +70,20 @@ void main() {
       investments: investments,
       goals: goals,
       settings: const SettingsEntity(),
-      referenceDate: now,
+      referenceDate: referenceDate ?? now,
+    );
+  }
+
+  TransferEntity toReserve(double amount, DateTime date, {String id = 't1'}) {
+    return TransferEntity(
+      id: id,
+      userId: 'u1',
+      amount: amount,
+      fromType: WalletType.balance,
+      toType: WalletType.reserve,
+      toId: 'r1',
+      date: date,
+      createdAt: date,
     );
   }
 
@@ -208,31 +222,88 @@ void main() {
   });
 
   group('missões', () {
-    test('reconhecem folhinhas levadas ao armazém no mês', () {
+    test('reconhece folhinhas levadas à caixinha nesta semana', () {
       final snapshot = build(
         transactions: [
           transaction(type: TransactionType.income, value: 2000),
         ],
-        transfers: [
-          TransferEntity(
-            id: 't1',
-            userId: 'u1',
-            amount: 300,
-            fromType: WalletType.balance,
-            toType: WalletType.reserve,
-            toId: 'r1',
-            date: now,
-            createdAt: now,
-          ),
-        ],
+        transfers: [toReserve(300, now)],
         reserves: [reserve(id: 'r1')],
       );
 
-      final mission =
-          snapshot.missions.firstWhere((m) => m.id == 'guardar_no_mes');
-
       expect(snapshot.facts.storedThisMonth, 300);
-      expect(mission.isComplete, isTrue);
+      expect(snapshot.challenge.kind, WeeklyChallengeKind.store);
+      expect(snapshot.challenge.isComplete, isTrue);
+      expect(snapshot.missions, hasLength(1));
+      expect(snapshot.missions.single.isComplete, isTrue);
+    });
+
+    test('pede para gastar menos na categoria que mais pesou', () {
+      final sunday = DateTime(2026, 8, 16, 23, 59, 59);
+      final snapshot = build(
+        referenceDate: sunday,
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 200,
+            date: DateTime(2026, 8, 5),
+            id: 'food-last',
+          ).copyWith(category: 'Alimentação'),
+          transaction(
+            type: TransactionType.expense,
+            value: 100,
+            date: DateTime(2026, 8, 12),
+            id: 'food-now',
+          ).copyWith(category: 'Alimentação'),
+        ],
+      );
+
+      expect(snapshot.challenge.kind, WeeklyChallengeKind.spendLess);
+      expect(snapshot.challenge.title, contains('R\$ 40'));
+      expect(snapshot.challenge.title, contains('Alimentação'));
+      expect(snapshot.challenge.isComplete, isTrue);
+      expect(snapshot.winter.trailSteps, greaterThan(0));
+    });
+
+    test('não conclui o corte de gasto antes do domingo', () {
+      final snapshot = build(
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 200,
+            date: DateTime(2026, 8, 5),
+            id: 'food-last',
+          ).copyWith(category: 'Alimentação'),
+        ],
+      );
+
+      expect(snapshot.challenge.isComplete, isFalse);
+      expect(snapshot.challenge.detail, contains('pode gastar'));
+    });
+
+    test('mostra o que faltou quando o combinado estoura', () {
+      final sunday = DateTime(2026, 8, 16, 23, 59, 59);
+      final snapshot = build(
+        referenceDate: sunday,
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 200,
+            date: DateTime(2026, 8, 5),
+            id: 'food-last',
+          ).copyWith(category: 'Alimentação'),
+          transaction(
+            type: TransactionType.expense,
+            value: 190,
+            date: DateTime(2026, 8, 12),
+            id: 'food-now',
+          ).copyWith(category: 'Alimentação'),
+        ],
+      );
+
+      expect(snapshot.challenge.isComplete, isFalse);
+      expect(snapshot.challenge.detail.toLowerCase(), contains('parou'));
+      expect(snapshot.level.level, greaterThan(0));
     });
 
     test('metas concluídas alimentam a conquista de missão cumprida', () {
@@ -257,16 +328,189 @@ void main() {
   });
 
   group('energia', () {
-    test('é apenas um indicador visual entre 0 e o máximo', () {
-      final snapshot = build(
+    test('salário gasto por inteiro não alimenta a formiga', () {
+      final spent = build(
         transactions: [
-          transaction(type: TransactionType.income, value: 4000),
+          transaction(type: TransactionType.income, value: 5000, id: 'in'),
+          transaction(type: TransactionType.expense, value: 5000, id: 'out'),
         ],
-        reserves: [reserve(id: 'r1', initialValue: 500)],
+      );
+      final fed = build(
+        transactions: [
+          transaction(type: TransactionType.income, value: 5000, id: 'in'),
+          transaction(type: TransactionType.expense, value: 1000, id: 'out'),
+        ],
+        transfers: [toReserve(400, now)],
+        reserves: [reserve(id: 'r1')],
       );
 
-      expect(snapshot.energy.level, inInclusiveRange(0, AntEnergy.maxLevel));
-      expect(snapshot.energy.message, isNotEmpty);
+      expect(spent.energy.level, 1);
+      expect(fed.energy.level, 5);
+      expect(fed.energy.level, greaterThan(spent.energy.level));
+    });
+
+    test('anotar despesa ou ter caixinha antiga não enche a energia', () {
+      final logged = build(
+        transactions: [
+          for (var i = 0; i < 5; i++)
+            transaction(
+              type: TransactionType.expense,
+              value: 20,
+              id: 'e$i',
+            ),
+        ],
+      );
+      final quietReserve = build(
+        reserves: [reserve(id: 'r1', initialValue: 5000)],
+      );
+
+      expect(logged.energy.level, 0);
+      expect(quietReserve.energy.level, 2);
+    });
+
+    test('saldo parado no mês deixa a caixinha com fome', () {
+      final kept = build(
+        transactions: [
+          transaction(type: TransactionType.income, value: 5000),
+        ],
+      );
+
+      expect(kept.energy.level, 3);
+      expect(kept.energy.message, contains('caixinha'));
+    });
+  });
+
+  group('trilha e recado', () {
+    test('sete dias sem a categoria levam ao armazém', () {
+      final start = DateTime(2026, 8, 9);
+      final snapshot = build(
+        profile: AntProfileEntity(trailCategory: 'Lazer', trailStartedOn: start),
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 30,
+            date: DateTime(2026, 8, 8),
+            id: 'before',
+          ).copyWith(category: 'Lazer'),
+        ],
+      );
+
+      expect(snapshot.trail.steps, 7);
+      expect(snapshot.trail.arrived, isTrue);
+    });
+
+    test('um gasto no meio da trilha não apaga os outros passos', () {
+      final snapshot = build(
+        profile: AntProfileEntity(
+          trailCategory: 'Lazer',
+          trailStartedOn: DateTime(2026, 8, 9),
+        ),
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 30,
+            date: DateTime(2026, 8, 12),
+            id: 'slip',
+          ).copyWith(category: 'Lazer'),
+        ],
+      );
+
+      expect(snapshot.trail.arrived, isFalse);
+      expect(snapshot.trail.steps, 6);
+    });
+
+    test('o recado junta o gasto da categoria e o que foi ao armazém', () {
+      final snapshot = build(
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 86,
+            id: 'food',
+          ).copyWith(category: 'Alimentação'),
+        ],
+        transfers: [toReserve(100, now)],
+        reserves: [reserve(id: 'r1')],
+      );
+
+      expect(
+        snapshot.weeklyNote,
+        'Você deixou R\$ 86 no caminho, a maior parte em Alimentação, '
+        'e guardou R\$ 100 no armazém.',
+      );
+    });
+  });
+
+  group('inverno como temporada', () {
+    test('a despensa diz quantos meses de gasto cobre', () {
+      final snapshot = build(
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 1000,
+            date: DateTime(2026, 5, 10),
+            id: 'may',
+          ),
+        ],
+        reserves: [reserve(id: 'r1', initialValue: 2500)],
+      );
+
+      expect(snapshot.winter.showScene, isFalse);
+      expect(snapshot.winter.monthsCovered, closeTo(2.5, 0.05));
+      expect(snapshot.winter.pantry, contains('2,5'));
+      expect(snapshot.winter.pantry, contains('meses de gasto'));
+    });
+
+    test('no dia do inverno a cena aquece sem apagar o que já existe', () {
+      final warm = build(
+        referenceDate: DateTime(2026, 6, 21, 10),
+        transactions: [
+          transaction(
+            type: TransactionType.income,
+            value: 8000,
+            date: DateTime(2026, 5, 2),
+            id: 'in',
+          ),
+          transaction(
+            type: TransactionType.expense,
+            value: 1000,
+            date: DateTime(2026, 5, 10),
+            id: 'out',
+          ),
+        ],
+        reserves: [reserve(id: 'r1', initialValue: 6000)],
+      );
+      final thin = build(
+        referenceDate: DateTime(2026, 6, 21, 10),
+        transactions: [
+          transaction(
+            type: TransactionType.expense,
+            value: 1000,
+            date: DateTime(2026, 5, 10),
+            id: 'out',
+          ),
+        ],
+        reserves: [reserve(id: 'r1', initialValue: 100)],
+      );
+
+      expect(warm.winter.showScene, isTrue);
+      expect(warm.winter.shelterReady, isTrue);
+      expect(warm.winter.headline, contains('aquecida'));
+      expect(warm.ground, AnthillGround.warm);
+      expect(warm.antMood, AntMood.asleep);
+      expect(warm.facts.reserves, 6000);
+      expect(
+        warm.achievements.firstWhere((a) => a.id == 'chegou_ao_inverno').isEarned,
+        isTrue,
+      );
+
+      expect(thin.winter.shelterReady, isFalse);
+      expect(thin.winter.headline, contains('magro'));
+      expect(thin.ground, AnthillGround.thin);
+      expect(
+        thin.achievements.firstWhere((a) => a.id == 'chegou_ao_inverno').isEarned,
+        isFalse,
+      );
+      expect(thin.facts.reserves, 100);
     });
   });
 }

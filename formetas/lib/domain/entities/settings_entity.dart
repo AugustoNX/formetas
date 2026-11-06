@@ -14,6 +14,7 @@ class SettingsEntity extends Equatable {
     this.firstDayOfMonth = 1,
     this.cdiRate = 13.25,
     this.onboardingCompleted = false,
+    this.balanceAsOf,
   });
 
   final String currency;
@@ -23,6 +24,9 @@ class SettingsEntity extends Equatable {
   final double cdiRate;
   final bool onboardingCompleted;
 
+  /// Dia em que o saldo informado passa a valer. Anterior a isso é histórico.
+  final DateTime? balanceAsOf;
+
   SettingsEntity copyWith({
     String? currency,
     AppThemeMode? theme,
@@ -30,6 +34,7 @@ class SettingsEntity extends Equatable {
     int? firstDayOfMonth,
     double? cdiRate,
     bool? onboardingCompleted,
+    DateTime? balanceAsOf,
   }) {
     return SettingsEntity(
       currency: currency ?? this.currency,
@@ -38,10 +43,16 @@ class SettingsEntity extends Equatable {
       firstDayOfMonth: firstDayOfMonth ?? this.firstDayOfMonth,
       cdiRate: cdiRate ?? this.cdiRate,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      balanceAsOf: balanceAsOf ?? this.balanceAsOf,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [currency, theme, cdiRate, onboardingCompleted];
+  List<Object?> get props => [
+    currency,
+    theme,
+    cdiRate,
+    onboardingCompleted,
+    balanceAsOf,
+  ];
 }

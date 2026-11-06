@@ -24,9 +24,9 @@ class TransferService {
     required TransferRepository transferRepository,
     required ReserveRepository reserveRepository,
     required InvestmentRepository investmentRepository,
-  })  : _transferRepository = transferRepository,
-        _reserveRepository = reserveRepository,
-        _investmentRepository = investmentRepository;
+  }) : _transferRepository = transferRepository,
+       _reserveRepository = reserveRepository,
+       _investmentRepository = investmentRepository;
 
   final TransferRepository _transferRepository;
   final ReserveRepository _reserveRepository;
@@ -38,11 +38,13 @@ class TransferService {
     required List<TransactionEntity> transactions,
     required List<TransferEntity> transfers,
     DateTime? until,
+    DateTime? countFrom,
   }) {
     return PatrimonyCalculator.balance(
       transactions: transactions,
       transfers: transfers,
       until: until,
+      countFrom: countFrom,
     );
   }
 
@@ -54,12 +56,14 @@ class TransferService {
     required List<ReserveWithMovements> reserves,
     required List<InvestmentEntity> investments,
     required double cdiRate,
+    DateTime? countFrom,
   }) {
     switch (fromType) {
       case WalletType.balance:
         return computeBalance(
           transactions: transactions,
           transfers: transfers,
+          countFrom: countFrom,
         );
       case WalletType.reserve:
         if (fromId == null || fromId.isEmpty) return 0;
@@ -72,8 +76,7 @@ class TransferService {
         );
       case WalletType.investment:
         if (fromId == null || fromId.isEmpty) return 0;
-        final investment =
-            investments.where((i) => i.id == fromId).firstOrNull;
+        final investment = investments.where((i) => i.id == fromId).firstOrNull;
         return investment?.currentValue ?? 0;
     }
   }
@@ -87,6 +90,7 @@ class TransferService {
     required List<ReserveWithMovements> reserves,
     required List<InvestmentEntity> investments,
     required double cdiRate,
+    DateTime? countFrom,
   }) {
     final available = availableFrom(
       fromType: fromType,
@@ -96,6 +100,7 @@ class TransferService {
       reserves: reserves,
       investments: investments,
       cdiRate: cdiRate,
+      countFrom: countFrom,
     );
 
     if (CurrencyFormatter.exceeds(amount, available)) {
@@ -122,6 +127,7 @@ class TransferService {
     required List<ReserveWithMovements> reserves,
     required List<InvestmentEntity> investments,
     required double cdiRate,
+    DateTime? countFrom,
   }) async {
     if (amount <= 0) throw TransferException('Informe um valor maior que zero');
     if (fromType == toType && fromId == toId) {
@@ -140,8 +146,69 @@ class TransferService {
       reserves: reserves,
       investments: investments,
       cdiRate: cdiRate,
+      countFrom: countFrom,
     );
 
+    await _write(
+      userId: userId,
+      fromType: fromType,
+      toType: toType,
+      amount: amount,
+      date: date,
+      fromId: fromId,
+      toId: toId,
+      description: description,
+      cdiRate: cdiRate,
+      investments: investments,
+    );
+  }
+
+  /// Movimento que o banco já efetivou. O extrato é a fonte, então não bloqueia
+  /// pelo saldo que o app enxerga hoje.
+  Future<void> recordSettled({
+    required String userId,
+    required WalletType fromType,
+    required WalletType toType,
+    required double amount,
+    required DateTime date,
+    required double cdiRate,
+    String? fromId,
+    String? toId,
+    String? description,
+  }) async {
+    if (amount <= 0) throw TransferException('Informe um valor maior que zero');
+    if (fromType == toType && fromId == toId) {
+      throw TransferException('Origem e destino devem ser diferentes');
+    }
+    _validateWalletId(fromType, fromId);
+    _validateWalletId(toType, toId);
+
+    await _write(
+      userId: userId,
+      fromType: fromType,
+      toType: toType,
+      amount: amount,
+      date: date,
+      fromId: fromId,
+      toId: toId,
+      description: description,
+      cdiRate: cdiRate,
+      investments: const [],
+    );
+  }
+
+  Future<void> _write({
+    required String userId,
+    required WalletType fromType,
+    required WalletType toType,
+    required double amount,
+    required DateTime date,
+    required double cdiRate,
+    required List<InvestmentEntity> investments,
+    String? fromId,
+    String? toId,
+    String? description,
+  }) async {
     final transfer = TransferEntity(
       id: const Uuid().v4(),
       userId: userId,
@@ -158,10 +225,24 @@ class TransferService {
     await _transferRepository.createTransfer(transfer);
 
     if (toType == WalletType.reserve) {
-      await _depositToReserve(userId, toId!, amount, date, description, cdiRate);
+      await _depositToReserve(
+        userId,
+        toId!,
+        amount,
+        date,
+        description,
+        cdiRate,
+      );
     }
     if (fromType == WalletType.reserve) {
-      await _withdrawFromReserve(userId, fromId!, amount, date, description, cdiRate);
+      await _withdrawFromReserve(
+        userId,
+        fromId!,
+        amount,
+        date,
+        description,
+        cdiRate,
+      );
     }
 
     if (toType == WalletType.investment) {
@@ -204,10 +285,10 @@ class TransferService {
   }
 
   String _walletLabel(WalletType type) => switch (type) {
-        WalletType.reserve => 'uma caixinha',
-        WalletType.investment => 'investimentos',
-        WalletType.balance => 'saldo',
-      };
+    WalletType.reserve => 'uma caixinha',
+    WalletType.investment => 'investimentos',
+    WalletType.balance => 'saldo',
+  };
 
   InvestmentEntity _findInvestment(
     List<InvestmentEntity> investments,
@@ -295,7 +376,8 @@ class TransferService {
   }) async {
     final id = investmentId ?? await ensureDefaultInvestment(userId);
     final existing = investments.where((i) => i.id == id).firstOrNull;
-    final investment = existing ??
+    final investment =
+        existing ??
         InvestmentEntity(
           id: id,
           userId: userId,

@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/category_entity.dart';
 import '../../../domain/entities/transaction_entity.dart';
+import '../../providers/ant_brain_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
@@ -161,7 +162,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       final value = CurrencyFormatter.parse(_valueController.text) ?? 0;
       final repo = ref.read(transactionRepositoryProvider);
 
-      if (_isInstallment && _existing == null && _type == TransactionType.expense) {
+      if (_isInstallment &&
+          _existing == null &&
+          _type == TransactionType.expense) {
         final parentId = const Uuid().v4();
         final installmentValue = value / _installmentCount;
 
@@ -172,13 +175,16 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
             type: _type,
             category: resolvedCategory,
             value: installmentValue,
-            description: '${_descriptionController.text} (${i + 1}/$_installmentCount)',
+            description:
+                '${_descriptionController.text} (${i + 1}/$_installmentCount)',
             date: DateTime(_date.year, _date.month + i, _date.day),
             observations: _observationsController.text.isEmpty
                 ? null
                 : _observationsController.text,
             recurrence: _recurrence,
-            account: _accountController.text.isEmpty ? null : _accountController.text,
+            account: _accountController.text.isEmpty
+                ? null
+                : _accountController.text,
             paymentMethod: _paymentMethod,
             isPaid: _isPaid,
             isInstallment: true,
@@ -202,7 +208,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
               ? null
               : _observationsController.text,
           recurrence: _recurrence,
-          account: _accountController.text.isEmpty ? null : _accountController.text,
+          account: _accountController.text.isEmpty
+              ? null
+              : _accountController.text,
           paymentMethod: _paymentMethod,
           isPaid: _isPaid,
           isInstallment: _isInstallment,
@@ -212,6 +220,14 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
 
         if (_existing != null) {
           await repo.updateTransaction(tx);
+          if (_existing!.category != resolvedCategory ||
+              _existing!.type != _type) {
+            try {
+              await ref
+                  .read(antBrainProvider.notifier)
+                  .retarget(before: _existing!, after: tx);
+            } catch (_) {}
+          }
         } else {
           await repo.createTransaction(tx);
         }
@@ -346,10 +362,12 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
               initialValue: _recurrence,
               decoration: const InputDecoration(labelText: 'Recorrência'),
               items: RecurrenceType.values
-                  .map((r) => DropdownMenuItem(
-                        value: r,
-                        child: Text(_recurrenceLabel(r)),
-                      ))
+                  .map(
+                    (r) => DropdownMenuItem(
+                      value: r,
+                      child: Text(_recurrenceLabel(r)),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _recurrence = v!),
             ),
@@ -357,12 +375,16 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<PaymentMethod>(
                 initialValue: _paymentMethod,
-                decoration: const InputDecoration(labelText: 'Forma de pagamento'),
+                decoration: const InputDecoration(
+                  labelText: 'Forma de pagamento',
+                ),
                 items: PaymentMethod.values
-                    .map((p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(_paymentLabel(p)),
-                        ))
+                    .map(
+                      (p) => DropdownMenuItem(
+                        value: p,
+                        child: Text(_paymentLabel(p)),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _paymentMethod = v!),
               ),
@@ -414,7 +436,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Salvar'),
             ),
@@ -425,19 +450,19 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
   }
 
   String _recurrenceLabel(RecurrenceType r) => switch (r) {
-        RecurrenceType.none => 'Nenhuma',
-        RecurrenceType.daily => 'Diária',
-        RecurrenceType.weekly => 'Semanal',
-        RecurrenceType.monthly => 'Mensal',
-        RecurrenceType.yearly => 'Anual',
-      };
+    RecurrenceType.none => 'Nenhuma',
+    RecurrenceType.daily => 'Diária',
+    RecurrenceType.weekly => 'Semanal',
+    RecurrenceType.monthly => 'Mensal',
+    RecurrenceType.yearly => 'Anual',
+  };
 
   String _paymentLabel(PaymentMethod p) => switch (p) {
-        PaymentMethod.cash => 'Dinheiro',
-        PaymentMethod.debit => 'Débito',
-        PaymentMethod.credit => 'Crédito',
-        PaymentMethod.pix => 'PIX',
-        PaymentMethod.transfer => 'Transferência',
-        PaymentMethod.other => 'Outro',
-      };
+    PaymentMethod.cash => 'Dinheiro',
+    PaymentMethod.debit => 'Débito',
+    PaymentMethod.credit => 'Crédito',
+    PaymentMethod.pix => 'PIX',
+    PaymentMethod.transfer => 'Transferência',
+    PaymentMethod.other => 'Outro',
+  };
 }

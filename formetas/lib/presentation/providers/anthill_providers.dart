@@ -130,6 +130,11 @@ class AnthillSyncController extends StateNotifier<List<AnthillCelebration>> {
             unlockedAchievements: {...profile.unlockedAchievements, ...pending},
             celebratedLevel: snapshot.level.level,
             createdAt: now,
+            celebratedMissionId: snapshot.challenge.isComplete
+                ? snapshot.challenge.id
+                : profile.celebratedMissionId,
+            trailCelebrated:
+                snapshot.trail.arrived || profile.trailCelebrated,
           ),
         );
         return;
@@ -160,6 +165,42 @@ class AnthillSyncController extends StateNotifier<List<AnthillCelebration>> {
           ),
         ]);
       }
+
+      if (snapshot.challenge.isComplete &&
+          snapshot.challenge.id != profile.celebratedMissionId) {
+        await repository.updateCelebratedMission(
+          user.id,
+          snapshot.challenge.id,
+        );
+        _enqueue([
+          const AnthillCelebration(
+            kind: CelebrationKind.mission,
+            title: 'Passo na trilha',
+            message: 'A formiga avançou rumo ao inverno.',
+            icon: AntIcon.snowflake,
+          ),
+        ]);
+      }
+
+      if (snapshot.trail.arrived &&
+          !profile.trailCelebrated &&
+          profile.trailCategory != null &&
+          profile.trailStartedOn != null) {
+        await repository.saveTrail(
+          user.id,
+          category: profile.trailCategory!,
+          startedOn: profile.trailStartedOn!,
+          celebrated: true,
+        );
+        _enqueue([
+          AnthillCelebration(
+            kind: CelebrationKind.mission,
+            title: 'A formiga chegou ao armazém',
+            message: 'Sete dias sem ${profile.trailCategory}.',
+            icon: AntIcon.storage,
+          ),
+        ]);
+      }
     } finally {
       _busy = false;
     }
@@ -181,6 +222,32 @@ class AnthillSyncController extends StateNotifier<List<AnthillCelebration>> {
 final anthillSyncProvider =
     StateNotifierProvider<AnthillSyncController, List<AnthillCelebration>>(
   (ref) => AnthillSyncController(ref),
+);
+
+class AnthillTrailController {
+  const AnthillTrailController(this._ref);
+
+  final Ref _ref;
+
+  Future<void> start(String category) async {
+    final name = category.trim();
+    if (name.isEmpty) return;
+
+    final user = _ref.read(currentUserProvider);
+    if (user == null) return;
+
+    final today = DateTime.now();
+    await _ref.read(anthillRepositoryProvider).saveTrail(
+          user.id,
+          category: name,
+          startedOn: DateTime(today.year, today.month, today.day),
+          celebrated: false,
+        );
+  }
+}
+
+final anthillTrailControllerProvider = Provider<AnthillTrailController>(
+  (ref) => AnthillTrailController(ref),
 );
 
 /// Frase curta usada como reforço positivo após guardar folhinhas.

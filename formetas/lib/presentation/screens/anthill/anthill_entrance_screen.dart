@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/anthill_snapshot.dart';
 import '../../widgets/anthill/ant_character.dart';
 import '../../widgets/anthill/anthill_palette.dart';
+import '../../widgets/anthill/anthill_rhythm_cards.dart';
 import '../../widgets/anthill/anthill_room.dart';
 import '../../widgets/anthill/anthill_scene.dart';
 import '../../widgets/anthill/anthill_sections.dart';
@@ -20,15 +21,21 @@ class AnthillEntranceScreen extends StatelessWidget {
     return AnthillRoom(
       icon: Icons.terrain_rounded,
       title: 'Entrada',
-      subtitle: 'O inverno está chegando. Cada folhinha guardada hoje conta.',
+      subtitle: 'O formigueiro cresce com o patrimônio. A formiga vive do mês.',
       body: (context, snapshot) => [
         _Headline(text: snapshot.headline),
+        const SizedBox(height: 12),
+        AntSpeech(
+          text: snapshot.weeklyNote,
+          animated: snapshot.profile.animationsEnabled,
+        ),
         const SizedBox(height: 16),
         AnthillScene(
           level: snapshot.level.level,
           levelProgress: snapshot.levelProgress,
           storageCount: snapshot.facts.reserveCount,
           animated: snapshot.profile.animationsEnabled,
+          ground: snapshot.ground,
         ),
         const SizedBox(height: 16),
         AntSummaryCard(snapshot: snapshot),
@@ -37,6 +44,7 @@ class AnthillEntranceScreen extends StatelessWidget {
       aside: (context, snapshot) => [
         WinterCard(
           winter: snapshot.winter,
+          animated: snapshot.profile.animationsEnabled,
           onTap: () => _showWinterDetails(context, snapshot.winter),
         ),
         const SizedBox(height: 16),
@@ -73,9 +81,13 @@ class AnthillEntranceScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'O inverno é o futuro. Cada folhinha guardada hoje deixa sua '
-                'formiga mais tranquila depois.',
+                winter.pantry,
                 style: TextStyle(color: AppColors.gray, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                winter.stepsLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),
               for (final task in winter.tasks) WinterTaskTile(task: task),

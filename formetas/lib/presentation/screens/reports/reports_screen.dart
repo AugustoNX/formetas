@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../providers/data_providers.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/formetas_card.dart';
@@ -21,13 +22,17 @@ class ReportsScreen extends ConsumerWidget {
         skipLoadingOnReload: true,
         skipLoadingOnRefresh: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(
+          child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+        ),
         data: (dashboard) {
           return statistics.when(
             skipLoadingOnReload: true,
             skipLoadingOnRefresh: true,
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erro: $e')),
+            error: (e, _) => Center(
+              child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+            ),
             data: (summary) => ListView(
               padding: const EdgeInsets.all(20),
               children: [

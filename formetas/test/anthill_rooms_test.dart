@@ -167,7 +167,7 @@ void main() {
     await pumpRoom(tester, const AnthillMissionsScreen());
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Missões do mês'), findsOneWidget);
+    expect(find.text('Missão da semana'), findsOneWidget);
     expect(find.text('Grandes objetivos'), findsOneWidget);
   });
 
@@ -198,7 +198,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Missões do mês'), findsOneWidget);
+    expect(find.text('Missão da semana'), findsOneWidget);
     expect(find.text('Grandes objetivos'), findsOneWidget);
   });
 

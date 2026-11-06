@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/leaf_formatter.dart';
+import '../../../domain/entities/anthill_snapshot.dart';
 import '../../providers/anthill_providers.dart';
 import '../../providers/app_mode_provider.dart';
 import 'ant_character.dart';
@@ -27,8 +27,7 @@ class AnthillEntryBanner extends ConsumerWidget {
 
     final subtitle = snapshot == null
         ? 'Veja seu dinheiro como o formigueiro que você está construindo.'
-        : '${snapshot.level.title} · '
-            '${LeafFormatter.label(snapshot.netWorth)} guardadas';
+        : snapshot.weeklyNote;
 
     return Material(
       color: Colors.transparent,
@@ -54,6 +53,7 @@ class AnthillEntryBanner extends ConsumerWidget {
               AntCharacter(
                 level: snapshot?.level.level ?? 1,
                 size: 58,
+                mood: snapshot?.antMood ?? AntMood.calm,
                 animated: snapshot?.profile.animationsEnabled ?? false,
               ),
               const SizedBox(width: 12),
@@ -73,13 +73,13 @@ class AnthillEntryBanner extends ConsumerWidget {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: palette.muted,
                         fontSize: 12,
                         height: 1.3,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

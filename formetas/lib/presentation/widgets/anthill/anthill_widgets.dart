@@ -165,9 +165,13 @@ class AntEnergyBar extends StatelessWidget {
         ),
         if (showMessage) ...[
           const SizedBox(height: 6),
-          Text(
-            energy.message,
-            style: TextStyle(color: palette.muted, fontSize: 12.5),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 320),
+            child: Text(
+              energy.message,
+              key: ValueKey(energy.message),
+              style: TextStyle(color: palette.muted, fontSize: 12.5),
+            ),
           ),
         ],
       ],
@@ -176,17 +180,38 @@ class AntEnergyBar extends StatelessWidget {
 }
 
 class WinterCard extends StatelessWidget {
-  const WinterCard({super.key, required this.winter, this.onTap});
+  const WinterCard({
+    super.key,
+    required this.winter,
+    this.onTap,
+    this.animated = true,
+  });
 
   final WinterStatus winter;
   final VoidCallback? onTap;
+  final bool animated;
 
   @override
   Widget build(BuildContext context) {
     final palette = AnthillPalette.of(context);
-    final accent = palette.isDark
-        ? const Color(0xFF8FC8E8)
-        : const Color(0xFF4E7E9B);
+    final accent = winter.showScene && winter.shelterReady
+        ? const Color(0xFFE0A15A)
+        : palette.isDark
+            ? const Color(0xFF8FC8E8)
+            : const Color(0xFF4E7E9B);
+
+    final figure = winter.showScene
+        ? (winter.shelterReady ? 'Aquecida' : 'Magra')
+        : winter.spendingKnown
+            ? _monthsFigure(winter.monthsCovered)
+            : '—';
+    final caption = winter.showScene
+        ? (winter.shelterReady
+            ? 'A temporada recomeça com a mesma meta.'
+            : 'O progresso fica. A meta também.')
+        : winter.spendingKnown
+            ? 'de gasto cobertos'
+            : winter.pantry;
 
     return Material(
       color: Colors.transparent,
@@ -205,7 +230,13 @@ class WinterCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.ac_unit_rounded, color: accent, size: 20),
+                  Icon(
+                    winter.showScene && winter.shelterReady
+                        ? Icons.nights_stay_rounded
+                        : Icons.ac_unit_rounded,
+                    color: accent,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -216,41 +247,41 @@ class WinterCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    'em ${winter.daysRemaining} dias',
-                    style: TextStyle(
-                      color: palette.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  if (!winter.showScene)
+                    Text(
+                      'em ${winter.daysRemaining} dias',
+                      style: TextStyle(
+                        color: palette.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${winter.readinessPercent}%',
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      height: 1,
-                      color: accent,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    child: Text(
-                      'preparado',
-                      style: TextStyle(color: palette.muted, fontSize: 13),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 14),
+              Text(
+                figure,
+                style: TextStyle(
+                  fontSize: winter.showScene ? 28 : 34,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                  color: accent,
+                ),
               ),
-              const SizedBox(height: 10),
-              AnthillProgressBar(value: winter.readiness, color: accent),
+              const SizedBox(height: 6),
+              Text(
+                caption,
+                style: TextStyle(color: palette.muted, fontSize: 13, height: 1.3),
+              ),
+              if (!winter.showScene) ...[
+                const SizedBox(height: 12),
+                Text(
+                  winter.stepsLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                WinterTrailDots(steps: winter.trailSteps, animated: animated),
+              ],
               const SizedBox(height: 12),
               Text(
                 winter.message,
@@ -260,6 +291,89 @@ class WinterCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  String _monthsFigure(double months) {
+    final tenths = (months * 10).round() / 10;
+    if ((tenths - tenths.roundToDouble()).abs() < 0.001) {
+      return tenths.round().toString();
+    }
+    return tenths.toStringAsFixed(1).replaceAll('.', ',');
+  }
+}
+
+class WinterTrailDots extends StatelessWidget {
+  const WinterTrailDots({super.key, required this.steps, this.animated = true});
+
+  final int steps;
+  final bool animated;
+
+  static const visible = 6;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AnthillPalette.of(context);
+    final filled = steps.clamp(0, visible);
+    final extra = steps > visible ? steps - visible : 0;
+
+    return Row(
+      children: [
+        for (var i = 0; i < visible; i++)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: _Dot(
+              filled: i < filled,
+              pulse: animated && i == filled - 1 && filled > 0,
+              color: palette.leaf,
+              empty: palette.muted.withValues(alpha: 0.28),
+            ),
+          ),
+        if (extra > 0)
+          Text(
+            '+$extra',
+            style: TextStyle(
+              color: palette.leaf,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({
+    required this.filled,
+    required this.pulse,
+    required this.color,
+    required this.empty,
+  });
+
+  final bool filled;
+  final bool pulse;
+  final Color color;
+  final Color empty;
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: filled ? color : empty,
+        shape: BoxShape.circle,
+      ),
+    );
+    if (!pulse) return dot;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.4, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: dot,
     );
   }
 }
@@ -375,9 +489,7 @@ class MissionTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  done
-                      ? 'Missão concluída. Sua formiga agradece.'
-                      : mission.definition.description,
+                  mission.definition.description,
                   style: TextStyle(
                     color: palette.muted,
                     fontSize: 12,
@@ -388,11 +500,15 @@ class MissionTile extends StatelessWidget {
                 AnthillProgressBar(
                   value: mission.progress,
                   height: 7,
-                  color: done ? palette.leaf : null,
+                  color: done
+                      ? palette.leaf
+                      : mission.progress >= 1
+                          ? AppColors.accent
+                          : null,
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _label(mission),
+                  mission.progressLabel ?? _label(mission),
                   style: TextStyle(color: palette.muted, fontSize: 11.5),
                 ),
               ],

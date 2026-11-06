@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/anthill_snapshot.dart';
 import '../../widgets/anthill/anthill_palette.dart';
+import '../../widgets/anthill/anthill_rhythm_cards.dart';
 import '../../widgets/anthill/anthill_room.dart';
 import '../../widgets/anthill/anthill_sections.dart';
 import '../../widgets/anthill/anthill_widgets.dart';
@@ -21,6 +22,11 @@ class AnthillMonthScreen extends StatelessWidget {
       title: 'O mês',
       subtitle: 'O caminho que suas folhinhas fizeram neste mês.',
       body: (context, snapshot) => [
+        AntSpeech(
+          text: snapshot.weeklyNote,
+          animated: snapshot.profile.animationsEnabled,
+        ),
+        const SizedBox(height: 16),
         LeafFlowCard(facts: snapshot.facts),
         const SizedBox(height: 16),
         _StoredThisMonthCard(facts: snapshot.facts),

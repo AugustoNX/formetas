@@ -1,11 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../data/datasources/asset_remote_datasource.dart';
 import '../../data/datasources/brapi_market_datasource.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/category_remote_datasource.dart';
 import '../../data/datasources/goal_remote_datasource.dart';
+import '../../data/datasources/ant_brain_remote_datasource.dart';
+import '../../data/datasources/import_rule_remote_datasource.dart';
+import '../../data/repositories/ant_brain_repository_impl.dart';
+import '../../data/repositories/import_rule_repository_impl.dart';
+import '../../domain/repositories/ant_brain_repository.dart';
+import '../../domain/repositories/import_rule_repository.dart';
 import '../../data/datasources/investment_remote_datasource.dart';
 import '../../data/datasources/settings_local_datasource.dart';
 import '../../data/datasources/transaction_remote_datasource.dart';
@@ -33,15 +40,19 @@ import '../../domain/repositories/reserve_repository.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/transfer_repository.dart';
+
 import '../../domain/services/asset_trade_service.dart';
 import '../../domain/services/dashboard_service.dart';
+import '../../domain/services/statement_import_service.dart';
 import '../../domain/services/transfer_service.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden');
 });
 
-final settingsLocalDataSourceProvider = Provider<SettingsLocalDataSource>((ref) {
+final settingsLocalDataSourceProvider = Provider<SettingsLocalDataSource>((
+  ref,
+) {
   return SettingsLocalDataSource(ref.watch(sharedPreferencesProvider));
 });
 
@@ -51,18 +62,20 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
 
 final transactionRemoteDataSourceProvider =
     Provider<TransactionRemoteDataSource>((ref) {
-  return TransactionRemoteDataSource();
-});
+      return TransactionRemoteDataSource();
+    });
 
-final categoryRemoteDataSourceProvider =
-    Provider<CategoryRemoteDataSource>((ref) {
+final categoryRemoteDataSourceProvider = Provider<CategoryRemoteDataSource>((
+  ref,
+) {
   return CategoryRemoteDataSource();
 });
 
-final investmentRemoteDataSourceProvider =
-    Provider<InvestmentRemoteDataSource>((ref) {
-  return InvestmentRemoteDataSource();
-});
+final investmentRemoteDataSourceProvider = Provider<InvestmentRemoteDataSource>(
+  (ref) {
+    return InvestmentRemoteDataSource();
+  },
+);
 
 final brapiMarketDataSourceProvider = Provider<BrapiMarketDataSource>((ref) {
   return BrapiMarketDataSource();
@@ -80,7 +93,9 @@ final assetRepositoryProvider = Provider<AssetRepository>((ref) {
   return AssetRepositoryImpl(ref.watch(assetRemoteDataSourceProvider));
 });
 
-final reserveRemoteDataSourceProvider = Provider<ReserveRemoteDataSource>((ref) {
+final reserveRemoteDataSourceProvider = Provider<ReserveRemoteDataSource>((
+  ref,
+) {
   return ReserveRemoteDataSource();
 });
 
@@ -101,7 +116,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
-  return TransactionRepositoryImpl(ref.watch(transactionRemoteDataSourceProvider));
+  return TransactionRepositoryImpl(
+    ref.watch(transactionRemoteDataSourceProvider),
+  );
 });
 
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
@@ -109,19 +126,44 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 });
 
 final investmentRepositoryProvider = Provider<InvestmentRepository>((ref) {
-  return InvestmentRepositoryImpl(ref.watch(investmentRemoteDataSourceProvider));
+  return InvestmentRepositoryImpl(
+    ref.watch(investmentRemoteDataSourceProvider),
+  );
 });
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepositoryImpl(ref.watch(goalRemoteDataSourceProvider));
 });
 
+final importRuleRemoteDataSourceProvider = Provider<ImportRuleRemoteDataSource>(
+  (ref) {
+    return ImportRuleRemoteDataSource();
+  },
+);
+
+final importRuleRepositoryProvider = Provider<ImportRuleRepository>((ref) {
+  return ImportRuleRepositoryImpl(
+    ref.watch(importRuleRemoteDataSourceProvider),
+  );
+});
+
+final antBrainRemoteDataSourceProvider = Provider<AntBrainRemoteDataSource>((
+  ref,
+) {
+  return AntBrainRemoteDataSource();
+});
+
+final antBrainRepositoryProvider = Provider<AntBrainRepository>((ref) {
+  return AntBrainRepositoryImpl(ref.watch(antBrainRemoteDataSourceProvider));
+});
+
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepositoryImpl(ref.watch(userRemoteDataSourceProvider));
 });
 
-final transferRemoteDataSourceProvider =
-    Provider<TransferRemoteDataSource>((ref) {
+final transferRemoteDataSourceProvider = Provider<TransferRemoteDataSource>((
+  ref,
+) {
   return TransferRemoteDataSource();
 });
 
@@ -134,6 +176,16 @@ final transferServiceProvider = Provider<TransferService>((ref) {
     transferRepository: ref.watch(transferRepositoryProvider),
     reserveRepository: ref.watch(reserveRepositoryProvider),
     investmentRepository: ref.watch(investmentRepositoryProvider),
+  );
+});
+
+final statementImportServiceProvider = Provider<StatementImportService>((ref) {
+  return StatementImportService(
+    transactionRepository: ref.watch(transactionRepositoryProvider),
+    reserveRepository: ref.watch(reserveRepositoryProvider),
+    importRuleRepository: ref.watch(importRuleRepositoryProvider),
+    transferService: ref.watch(transferServiceProvider),
+    nextId: () => const Uuid().v4(),
   );
 });
 

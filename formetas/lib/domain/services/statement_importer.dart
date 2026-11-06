@@ -12,6 +12,7 @@ abstract final class StatementImporter {
     return [
       for (final entry in entries)
         if (entry.included &&
+            entry.role == StatementRole.transaction &&
             entry.amount > 0 &&
             entry.description.trim().isNotEmpty &&
             (entry.type == TransactionType.income ||

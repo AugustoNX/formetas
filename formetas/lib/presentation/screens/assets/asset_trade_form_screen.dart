@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/asset_calculator.dart';
+import '../../../core/utils/balance_cutoff.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/number_formatter.dart';
 import '../../../core/utils/patrimony_calculator.dart';
@@ -63,7 +65,8 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
   bool get _catalogSearch =>
       _buyingNew && MarketQuoteMapper.isListed(_assetClass) && !_manualTicker;
 
-  double get _quantity => CurrencyFormatter.parse(_quantityController.text) ?? 0;
+  double get _quantity =>
+      CurrencyFormatter.parse(_quantityController.text) ?? 0;
 
   double get _unitPrice => CurrencyFormatter.parse(_priceController.text) ?? 0;
 
@@ -73,12 +76,12 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
       CurrencyFormatter.parse(_amountController.text) ?? 0;
 
   double get _total => AssetTradeEntity.totalFor(
-        type: _type,
-        quantity: _quantity,
-        unitPrice: _unitPrice,
-        fees: _fees,
-        dividendAmount: _dividendAmount,
-      );
+    type: _type,
+    quantity: _quantity,
+    unitPrice: _unitPrice,
+    fees: _fees,
+    dividendAmount: _dividendAmount,
+  );
 
   void _changeType(AssetTradeType type) {
     setState(() {
@@ -126,8 +129,11 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
 
-    final ticker = (_quote?.ticker ?? _tickerController.text).trim().toUpperCase();
-    final existing = assets.where((item) => item.asset.id == _selectedId).firstOrNull ??
+    final ticker = (_quote?.ticker ?? _tickerController.text)
+        .trim()
+        .toUpperCase();
+    final existing =
+        assets.where((item) => item.asset.id == _selectedId).firstOrNull ??
         (ticker.isEmpty
             ? null
             : assets.where((item) => item.asset.ticker == ticker).firstOrNull);
@@ -142,11 +148,14 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
       return;
     }
 
-    final resolvedTicker = (existing?.asset.ticker ?? ticker).trim().toUpperCase();
-    final name = existing?.asset.name ??
-        (_quote?.name ?? _nameController.text).trim();
+    final resolvedTicker = (existing?.asset.ticker ?? ticker)
+        .trim()
+        .toUpperCase();
+    final name =
+        existing?.asset.name ?? (_quote?.name ?? _nameController.text).trim();
 
-    var asset = existing?.asset ??
+    var asset =
+        existing?.asset ??
         AssetEntity(
           id: const Uuid().v4(),
           userId: user.id,
@@ -175,25 +184,33 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(assetTradeServiceProvider).registerTrade(
+      final transactions = ref.read(transactionsProvider).valueOrNull ?? [];
+      final transfers = ref.read(transfersProvider).valueOrNull ?? [];
+      final settings = ref.read(settingsProvider).valueOrNull;
+      await ref
+          .read(assetTradeServiceProvider)
+          .registerTrade(
             asset: asset,
             type: _type,
             date: _date,
             position: position,
-            transactions: ref.read(transactionsProvider).valueOrNull ?? [],
-            transfers: ref.read(transfersProvider).valueOrNull ?? [],
+            transactions: transactions,
+            transfers: transfers,
             quantity: _isDividend ? 0 : _quantity,
             unitPrice: _isDividend ? 0 : _unitPrice,
             fees: _isDividend ? 0 : _fees,
             dividendAmount: _isDividend ? _dividendAmount : 0,
             isNewAsset: existing == null,
+            countFrom: BalanceCutoff.resolve(
+              saved: settings?.balanceAsOf,
+              transactions: transactions,
+            ),
           );
 
       if (existing != null && _quote?.price != null) {
-        await ref.read(assetTradeServiceProvider).updatePrice(
-              asset,
-              _quote!.price!,
-            );
+        await ref
+            .read(assetTradeServiceProvider)
+            .updatePrice(asset, _quote!.price!);
       }
 
       if (!mounted) return;
@@ -228,20 +245,29 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
         skipLoadingOnReload: true,
         skipLoadingOnRefresh: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(
+          child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+        ),
         data: (list) => _buildForm(list),
       ),
     );
   }
 
   Widget _buildForm(List<AssetWithTrades> assets) {
+    final transactions = ref.watch(transactionsProvider).valueOrNull ?? [];
+    final transfers = ref.watch(transfersProvider).valueOrNull ?? [];
     final balance = PatrimonyCalculator.balance(
-      transactions: ref.watch(transactionsProvider).valueOrNull ?? [],
-      transfers: ref.watch(transfersProvider).valueOrNull ?? [],
+      transactions: transactions,
+      transfers: transfers,
+      countFrom: BalanceCutoff.resolve(
+        saved: ref.watch(settingsProvider).valueOrNull?.balanceAsOf,
+        transactions: transactions,
+      ),
     );
 
-    final selected =
-        assets.where((item) => item.asset.id == _selectedId).firstOrNull;
+    final selected = assets
+        .where((item) => item.asset.id == _selectedId)
+        .firstOrNull;
     final position = selected == null
         ? null
         : AssetCalculator.position(
@@ -314,12 +340,12 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
                 assets: assets,
                 selectedId: _selectedId,
                 onChanged: (value) {
-                if (value == null || value == _selectedId) return;
-                setState(() {
-                  _selectedId = value;
-                  _quote = null;
-                });
-              },
+                  if (value == null || value == _selectedId) return;
+                  setState(() {
+                    _selectedId = value;
+                    _quote = null;
+                  });
+                },
               ),
             if (_catalogSearch)
               Align(
@@ -357,7 +383,9 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
           if (_isDividend)
             TextFormField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Valor recebido',
                 prefixText: 'R\$ ',
@@ -369,7 +397,9 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
           else ...[
             TextFormField(
               controller: _quantityController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: InputDecoration(
                 labelText: 'Quantidade',
                 helperText: _type == AssetTradeType.sell && position != null
@@ -377,13 +407,14 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
                     : null,
               ),
               onChanged: (_) => setState(() {}),
-              validator: (_) =>
-                  _quantity <= 0 ? 'Informe a quantidade' : null,
+              validator: (_) => _quantity <= 0 ? 'Informe a quantidade' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _priceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: InputDecoration(
                 labelText: 'Preço da transação',
                 prefixText: 'R\$ ',
@@ -397,7 +428,9 @@ class _AssetTradeFormScreenState extends ConsumerState<AssetTradeFormScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _feesController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Outros custos (opcional)',
                 prefixText: 'R\$ ',
@@ -495,8 +528,9 @@ class _OwnedAssetDropdown extends StatelessWidget {
         ),
     ];
 
-    final value =
-        items.any((item) => item.value == selectedId) ? selectedId : null;
+    final value = items.any((item) => item.value == selectedId)
+        ? selectedId
+        : null;
 
     return DropdownButtonFormField<String>(
       initialValue: value,

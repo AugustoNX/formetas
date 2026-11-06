@@ -34,6 +34,23 @@ class AnthillRemoteDataSource {
     await _ref(userId).update({'nivelCelebrado': level});
   }
 
+  Future<void> updateCelebratedMission(String userId, String missionId) async {
+    await _ref(userId).update({'missaoCelebrada': missionId});
+  }
+
+  Future<void> saveTrail(
+    String userId, {
+    required String category,
+    required DateTime startedOn,
+    required bool celebrated,
+  }) async {
+    await _ref(userId).update({
+      'trilhaCategoria': category,
+      'trilhaInicio': startedOn.toIso8601String(),
+      'trilhaCelebrada': celebrated,
+    });
+  }
+
   Future<void> initialize(String userId, AntProfileEntity profile) async {
     await _ref(userId).set(AntProfileModel.fromEntity(profile).toMap());
   }

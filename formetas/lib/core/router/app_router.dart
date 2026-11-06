@@ -31,6 +31,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
+import '../../presentation/screens/insights/insights_screen.dart';
 import '../../presentation/screens/transfer/transfer_screen.dart';
 import '../../presentation/screens/transactions/statement_import_screen.dart';
 import '../../presentation/screens/transactions/transaction_form_screen.dart';
@@ -265,6 +266,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/formigueiro/formiga',
         builder: (_, _) => const AntCareScreen(),
+      ),
+      GoRoute(
+        path: '/insights',
+        builder: (_, _) => const InsightsScreen(),
       ),
       GoRoute(
         path: '/categories',

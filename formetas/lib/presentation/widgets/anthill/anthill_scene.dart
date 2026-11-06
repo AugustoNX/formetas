@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../domain/entities/anthill_snapshot.dart';
 import 'anthill_palette.dart';
 
 /// O formigueiro que cresce junto com o patrimônio.
@@ -17,6 +18,7 @@ class AnthillScene extends StatefulWidget {
     required this.storageCount,
     this.height = 240,
     this.animated = true,
+    this.ground = AnthillGround.growing,
   });
 
   final int level;
@@ -24,6 +26,7 @@ class AnthillScene extends StatefulWidget {
   final int storageCount;
   final double height;
   final bool animated;
+  final AnthillGround ground;
 
   @override
   State<AnthillScene> createState() => _AnthillSceneState();
@@ -77,6 +80,7 @@ class _AnthillSceneState extends State<AnthillScene>
               storageCount: widget.storageCount,
               palette: palette,
               phase: _controller.value,
+              ground: widget.ground,
             ),
           ),
         ),
@@ -99,6 +103,7 @@ class _AnthillPainter extends CustomPainter {
     required this.storageCount,
     required this.palette,
     required this.phase,
+    required this.ground,
   });
 
   /// Posições relativas das salas, da primeira à última desbloqueada.
@@ -115,6 +120,7 @@ class _AnthillPainter extends CustomPainter {
   final int storageCount;
   final AnthillPalette palette;
   final double phase;
+  final AnthillGround ground;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -146,6 +152,18 @@ class _AnthillPainter extends CustomPainter {
           colors: [palette.skyTop, palette.skyBottom],
         ).createShader(rect),
     );
+
+    if (ground == AnthillGround.warm) {
+      canvas.drawRect(
+        rect,
+        Paint()..color = const Color(0xFFFFB35A).withValues(alpha: 0.18),
+      );
+    } else if (ground == AnthillGround.thin) {
+      canvas.drawRect(
+        rect,
+        Paint()..color = const Color(0xFF8AA4B8).withValues(alpha: 0.16),
+      );
+    }
 
     if (palette.isDark) {
       final stars = math.Random(7);
@@ -246,9 +264,14 @@ class _AnthillPainter extends CustomPainter {
   }
 
   Offset _paintMound(Canvas canvas, Size size, double groundY) {
+    final thin = ground == AnthillGround.thin;
     final center = size.width * 0.5;
-    final width = size.width * (0.28 + 0.045 * level.clamp(1, 5));
-    final height = size.height * (0.13 + 0.035 * level.clamp(1, 5));
+    final width = size.width *
+        (thin ? 0.2 : 0.28) *
+        (1 + 0.12 * (level.clamp(1, 5) - 1));
+    final height = size.height *
+        (thin ? 0.055 : 0.13) *
+        (1 + 0.18 * (level.clamp(1, 5) - 1));
 
     final mound = Path()
       ..moveTo(center - width / 2, groundY)
@@ -277,13 +300,17 @@ class _AnthillPainter extends CustomPainter {
       Paint()..color = palette.tunnel,
     );
 
-    if (palette.isDark) {
+    if (ground == AnthillGround.warm || palette.isDark) {
+      final pulse = 0.28 + 0.16 * math.sin(phase * 2 * math.pi);
       canvas.drawCircle(
         entrance,
-        width * 0.16,
+        width * (ground == AnthillGround.warm ? 0.28 : 0.16),
         Paint()
-          ..color = palette.glow.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+          ..color = (ground == AnthillGround.warm
+                  ? const Color(0xFFFFC46B)
+                  : palette.glow)
+              .withValues(alpha: pulse)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
     }
 
@@ -400,7 +427,7 @@ class _AnthillPainter extends CustomPainter {
   }
 
   void _paintGrass(Canvas canvas, Size size, double groundY, math.Random random) {
-    final tufts = 5 + level * 2;
+    final tufts = ground == AnthillGround.thin ? 3 : 5 + level * 2;
     final sway = math.sin(phase * 2 * math.pi) * 2;
 
     for (var i = 0; i < tufts; i++) {
@@ -436,7 +463,11 @@ class _AnthillPainter extends CustomPainter {
     double groundY,
     Offset entrance,
   ) {
-    final antCount = level >= 5 ? 3 : (level >= 3 ? 2 : 1);
+    final antCount = switch (ground) {
+      AnthillGround.warm => 0,
+      AnthillGround.thin => 1,
+      AnthillGround.growing => level >= 5 ? 3 : (level >= 3 ? 2 : 1),
+    };
 
     for (var i = 0; i < antCount; i++) {
       final t = (phase + i * 0.33) % 1;
@@ -450,7 +481,7 @@ class _AnthillPainter extends CustomPainter {
         Offset(x, groundY - 4 + bob),
         size.width * 0.028,
         facingRight: fromLeft,
-        carrying: t < 0.85,
+        carrying: ground != AnthillGround.thin && t < 0.85,
       );
     }
   }
@@ -520,6 +551,7 @@ class _AnthillPainter extends CustomPainter {
         oldDelegate.levelProgress != levelProgress ||
         oldDelegate.storageCount != storageCount ||
         oldDelegate.phase != phase ||
+        oldDelegate.ground != ground ||
         oldDelegate.palette.isDark != palette.isDark;
   }
 }

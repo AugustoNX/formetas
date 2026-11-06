@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../../../core/constants/default_categories.dart';
 import '../../../domain/entities/category_entity.dart';
 import '../../../domain/entities/transaction_entity.dart';
@@ -59,7 +60,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           Expanded(
             child: categories.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (e, _) => Center(
+                child: Text(UserFacingError.load(e), textAlign: TextAlign.center),
+              ),
               data: (list) {
                 final filtered =
                     list.where((c) => c.type == _filterType).toList();

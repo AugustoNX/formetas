@@ -9,6 +9,7 @@ class GoalEntity extends Equatable {
     required this.currentValue,
     required this.targetDate,
     required this.createdAt,
+    this.reserveId,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class GoalEntity extends Equatable {
   final double currentValue;
   final DateTime targetDate;
   final DateTime createdAt;
+  final String? reserveId;
 
   double get progressPercent =>
       targetValue > 0 ? (currentValue / targetValue * 100).clamp(0, 100) : 0;
@@ -32,6 +34,8 @@ class GoalEntity extends Equatable {
     double? currentValue,
     DateTime? targetDate,
     DateTime? createdAt,
+    String? reserveId,
+    bool clearReserve = false,
   }) {
     return GoalEntity(
       id: id ?? this.id,
@@ -41,6 +45,7 @@ class GoalEntity extends Equatable {
       currentValue: currentValue ?? this.currentValue,
       targetDate: targetDate ?? this.targetDate,
       createdAt: createdAt ?? this.createdAt,
+      reserveId: clearReserve ? null : reserveId ?? this.reserveId,
     );
   }
 

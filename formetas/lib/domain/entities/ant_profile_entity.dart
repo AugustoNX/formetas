@@ -11,6 +11,10 @@ class AntProfileEntity extends Equatable {
     this.animationsEnabled = true,
     this.celebratedLevel = 0,
     this.createdAt,
+    this.trailCategory,
+    this.trailStartedOn,
+    this.trailCelebrated = false,
+    this.celebratedMissionId,
   });
 
   static const defaultAntName = 'Formiguinha';
@@ -27,6 +31,14 @@ class AntProfileEntity extends Equatable {
 
   final DateTime? createdAt;
 
+  /// Categoria da trilha de 7 dias. Nula quando não há trilha em andamento.
+  final String? trailCategory;
+  final DateTime? trailStartedOn;
+  final bool trailCelebrated;
+
+  /// Semana cuja missão já foi comemorada.
+  final String? celebratedMissionId;
+
   bool isUnlocked(String achievementId) =>
       unlockedAchievements.containsKey(achievementId);
 
@@ -41,6 +53,10 @@ class AntProfileEntity extends Equatable {
     bool? animationsEnabled,
     int? celebratedLevel,
     DateTime? createdAt,
+    String? trailCategory,
+    DateTime? trailStartedOn,
+    bool? trailCelebrated,
+    String? celebratedMissionId,
   }) {
     return AntProfileEntity(
       antName: antName ?? this.antName,
@@ -48,6 +64,10 @@ class AntProfileEntity extends Equatable {
       animationsEnabled: animationsEnabled ?? this.animationsEnabled,
       celebratedLevel: celebratedLevel ?? this.celebratedLevel,
       createdAt: createdAt ?? this.createdAt,
+      trailCategory: trailCategory ?? this.trailCategory,
+      trailStartedOn: trailStartedOn ?? this.trailStartedOn,
+      trailCelebrated: trailCelebrated ?? this.trailCelebrated,
+      celebratedMissionId: celebratedMissionId ?? this.celebratedMissionId,
     );
   }
 
@@ -57,5 +77,9 @@ class AntProfileEntity extends Equatable {
         unlockedAchievements,
         animationsEnabled,
         celebratedLevel,
+        trailCategory,
+        trailStartedOn,
+        trailCelebrated,
+        celebratedMissionId,
       ];
 }
